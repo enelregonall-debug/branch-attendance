@@ -93,7 +93,7 @@ async function initEmployeeMode(){
         employeeBranch=br[0];
         localStorage.setItem(BRANCH_CACHE,JSON.stringify(br[0]));
         try{
-          const r=await publicFetch('/employees?or=(branch_id.eq.'+Number(employeeBranch.id)+',branch_id.is.null)&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+          const r=await publicFetch('/employees?active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
           if(!r.ok) throw new Error('Could not load employees ('+r.status+').');
           const rows=await r.json();
           setCachedEmployees(rows.map(e=>({id:e.id,employee_code:e.employee_code,full_name:e.full_name,position:e.position,branch_id:e.branch_id,active:true})));
@@ -231,7 +231,7 @@ async function supervisorAssistLogout(){
   document.getElementById('assistPassword').value='';
   document.getElementById('assistMsg').innerHTML='<span class="muted">Supervisor session finished.</span>';
 }
-async function employeeSync(){
+async async function employeeSync(){
   const m=document.getElementById('empMsg');
   if(!navigator.onLine){m.innerHTML='<span class="bad">Offline. Connect once to refresh the employee list.</span>';return;}
   // If the QR was opened without a resolved branch, retry the branch lookup from the URL.
