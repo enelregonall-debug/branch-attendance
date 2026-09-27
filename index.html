@@ -281,26 +281,40 @@ async function employeeLogin(){
   const bind=getDeviceBind();
   if(!bind){m.innerHTML='<span class="bad">This phone is not registered yet. Register it first.</span>';employeeBusy=false;return;}
   if(bind.employee_code!==code){m.innerHTML='<span class="bad">This phone is registered to another employee.</span>';employeeBusy=false;return;}
+
   let e=null;
+  // Always get the employee assignment directly from Supabase when online.
+  // NULL branch_id is ANY BRANCH.
   if(navigator.onLine){
     try{
-      const fresh=await publicFetch('/employees?employee_code=eq.'+encodeURIComponent(code)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id');
+      const q=bind.employee_id
+        ? '/employees?id=eq.'+encodeURIComponent(bind.employee_id)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id'
+        : '/employees?employee_code=eq.'+encodeURIComponent(code)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id';
+      const fresh=await publicFetch(q);
       const rows=await fresh.json();
       if(rows[0]) e=rows[0];
     }catch(err){console.warn('Employee refresh:',err);}
   }
-  if(!e) e=getCachedEmployees().find(x=>x.employee_code===code);
+  if(!e)e=getCachedEmployees().find(x=>x.employee_code===code);
   if(!e){m.innerHTML='<span class="bad">Registered employee is not available. Refresh while online.</span>';employeeBusy=false;return;}
-  // NULL branch_id means ANY BRANCH. Only non-NULL assignments are branch-restricted.
-  if(e.branch_id !== null && e.branch_id !== undefined && String(e.branch_id).toLowerCase()!=='null'){
-    if(!employeeBranch || Number(e.branch_id)!==Number(employeeBranch.id)){
-      m.innerHTML='<span class="bad">🚫 This registered employee is not assigned to this branch.</span>';employeeBusy=false;return;
-    }
+
+  // Only employees with a real branch_id are restricted to that branch.
+  // NULL/empty branch_id means ANY BRANCH.
+  const assignedBranch=(e.branch_id===null||e.branch_id===undefined||e.branch_id==='')?null:Number(e.branch_id);
+  if(assignedBranch!==null && (!employeeBranch || assignedBranch!==Number(employeeBranch.id))){
+    m.innerHTML='<span class="bad">🚫 This registered employee is not assigned to this branch.</span>';
+    employeeBusy=false;return;
   }
+
   m.textContent='Checking GPS…';
-  try{await verifyInsideBranch();employeeSession=e;document.getElementById('employeeGate').style.display='none';renderEmployeeApp();}
-  catch(err){m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';}
-  finally{employeeBusy=false;}
+  try{
+    await verifyInsideBranch();
+    employeeSession=e;
+    document.getElementById('employeeGate').style.display='none';
+    renderEmployeeApp();
+  }catch(err){
+    m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';
+  }finally{employeeBusy=false;}
 }
 function cachedBranchName(id){try{const x=JSON.parse(localStorage.getItem('bratt_branch_list')||'[]').find(b=>Number(b.id)===Number(id));return x?.name||'another branch'}catch{return 'another branch'}}
 async function cacheBranchList(){if(!navigator.onLine)return;try{const b=await publicFetch('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc').then(r=>r.json());localStorage.setItem('bratt_branch_list',JSON.stringify(b))}catch{}}
