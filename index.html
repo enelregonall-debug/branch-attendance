@@ -93,7 +93,7 @@ async function initEmployeeMode(){
         employeeBranch=br[0];
         localStorage.setItem(BRANCH_CACHE,JSON.stringify(br[0]));
         try{
-          const r=await publicFetch('/employees?branch_id=eq.'+encodeURIComponent(employeeBranch.id)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+          const r=await publicFetch('/employees?or=(branch_id.eq.'+Number(employeeBranch.id)+',branch_id.is.null)&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
           if(!r.ok) throw new Error('Could not load employees ('+r.status+').');
           const rows=await r.json();
           setCachedEmployees(rows.map(e=>({id:e.id,employee_code:e.employee_code,full_name:e.full_name,position:e.position,branch_id:e.branch_id,active:true})));
@@ -128,7 +128,7 @@ function clearEmployeeSelectionUI(){
 function setCachedEmployees(x){localStorage.setItem(EMP_CACHE,JSON.stringify(x))}
 function populateEmployeeSelect(){
   const sel=document.getElementById('empSelect'); if(!sel)return;
-  const list=getCachedEmployees().filter(e=>e.active!==false && (!employeeBranch || Number(e.branch_id)===Number(employeeBranch.id)));
+  const list=getCachedEmployees().filter(e=>e.active!==false && (!employeeBranch || e.branch_id==null || Number(e.branch_id)===Number(employeeBranch.id)));
   const bind=getDeviceBind();
   if(bind){
     const match=list.find(e=>String(e.id)===String(bind.employee_id)||e.employee_code===bind.employee_code);
@@ -190,7 +190,7 @@ async function supervisorAssistLogin(){
   if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
   session=data.session;
   try{
-    const rows=await api('/employees?branch_id=eq.'+encodeURIComponent(employeeBranch.id)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+    const rows=await api('/employees?or=(branch_id.eq.'+Number(employeeBranch.id)+',branch_id.is.null)&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
     if(!rows.length) throw new Error('No active employees are assigned to this branch.');
     document.getElementById('assistEmp').innerHTML=rows.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
     document.getElementById('assistPanel').style.display='block';
@@ -246,7 +246,7 @@ async function employeeSync(){
   if(!employeeBranch){m.innerHTML='<span class="bad">Branch QR could not be verified. Please scan the latest Branch QR from the live HTTPS site.</span>';return;}
   m.textContent='Refreshing employee list…';
   try{
-    const r=await publicFetch('/employees?branch_id=eq.'+encodeURIComponent(employeeBranch.id)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+    const r=await publicFetch('/employees?or=(branch_id.eq.'+Number(employeeBranch.id)+',branch_id.is.null)&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
     if(!r.ok) throw new Error('Could not load employees ('+r.status+').');
     const rows=await r.json();
     if(!rows.length)throw new Error('No active employees are assigned to '+employeeBranch.name+'.');
