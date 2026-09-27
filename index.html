@@ -264,7 +264,7 @@ async function registerThisPhone(){
   if(getDeviceBind()){m.innerHTML='<span class="bad">This phone is already registered to an employee.</span>';employeeBusy=false;return;}
   const e=getCachedEmployees().find(x=>x.employee_code===code);
   if(!e){m.innerHTML='<span class="bad">Employee is not available on this phone. Refresh the employee list.</span>';employeeBusy=false;return;}
-  if(!employeeBranch||Number(e.branch_id)!==Number(employeeBranch.id)){m.innerHTML='<span class="bad">🚫 This employee is not assigned to this branch.</span>';employeeBusy=false;return;}
+  if(!employeeBranch||(e.branch_id!=null && Number(e.branch_id)!==Number(employeeBranch.id))){m.innerHTML='<span class="bad">🚫 This employee is not assigned to this branch.</span>';employeeBusy=false;return;}
   m.textContent='Checking GPS and registering this phone…';
   try{
     await verifyInsideBranch();
@@ -283,7 +283,7 @@ async function employeeLogin(){
   if(bind.employee_code!==code){m.innerHTML='<span class="bad">This phone is registered to another employee.</span>';employeeBusy=false;return;}
   const e=getCachedEmployees().find(x=>x.employee_code===code);
   if(!e){m.innerHTML='<span class="bad">Registered employee is not available on this branch. Refresh while online.</span>';employeeBusy=false;return;}
-  if(!employeeBranch||Number(e.branch_id)!==Number(employeeBranch.id)){m.innerHTML='<span class="bad">🚫 This registered employee is not assigned to this branch.</span>';employeeBusy=false;return;}
+  if(!employeeBranch||(e.branch_id!=null && Number(e.branch_id)!==Number(employeeBranch.id))){m.innerHTML='<span class="bad">🚫 This registered employee is not assigned to this branch.</span>';employeeBusy=false;return;}
   m.textContent='Checking GPS…';
   try{await verifyInsideBranch();employeeSession=e;document.getElementById('employeeGate').style.display='none';renderEmployeeApp();}
   catch(err){m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';}
