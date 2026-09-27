@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Branch QR Attendance — Offline Employee Mode</title>
+<link rel="manifest" href="manifest.json">
+<style>
+#authGate{position:fixed;inset:0;background:#f4f6fa;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}.login{width:min(420px,100%);background:#fff;padding:24px;border-radius:16px;box-shadow:0 8px 30px #0002}.login input{width:100%;box-sizing:border-box;margin:7px 0}.login button{width:100%;margin-top:8px}.authmsg{margin-top:12px;min-height:20px}.logout{float:right;background:#fff;color:#172033;border:1px solid #ccd3df}
+body{font-family:Arial,sans-serif;margin:0;background:#f4f6fa;color:#172033}
+header{background:#172033;color:#fff;padding:18px}
+nav{background:#fff;padding:10px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+button,input,select{padding:10px;border:1px solid #ccd3df;border-radius:8px;font:inherit}
+button{background:#172033;color:#fff;cursor:pointer}
+main{max-width:1100px;margin:auto;padding:16px}
+.card{background:#fff;padding:16px;margin-bottom:14px;border-radius:12px;box-shadow:0 2px 8px #0001}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.stat{font-size:28px;font-weight:bold}
+table{width:100%;border-collapse:collapse;overflow:auto}
+td,th{padding:8px;border-bottom:1px solid #eee;text-align:left}
+.ok{color:#087443;font-weight:bold}.bad{color:#b42318;font-weight:bold}.muted{color:#667085}
+#reader{max-width:500px;margin:auto}.center{text-align:center}
+.small{font-size:13px}.pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#eef2ff}
+.notice{padding:12px;border-radius:8px;background:#fff7e6;margin-bottom:12px}
+@media(max-width:700px){table{font-size:13px}td,th{padding:6px}}
+</style>
+</head>
+<body>
+<div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device that is physically inside the branch. GPS is still required.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate"><div class="login"><h2>🔐 Supervisor Login</h2><p class="muted">Sign in to manage employees, branch QR codes, branch locations, and attendance.</p><input id="loginEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password"><button onclick="login()">Sign In</button><button onclick="signup()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button><button onclick="resendConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button><div id="authMsg" class="authmsg small"></div><p class="muted small">Uses Supabase Auth. If your account is not confirmed yet, use Resend Confirmation Email and then sign in again.</p></div></div>
+<header>
+<button class="logout" onclick="logout()">Log Out</button><h2>📋 Branch QR Attendance — FINAL</h2>
+<div>Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div>
+</header>
+<nav>
+<button onclick="page('dashboard')">Dashboard</button>
+<button onclick="page('employees')">Employees</button>
+<button onclick="page('branchqrs')">🏪 Branch QR</button>
+<button onclick="page('attendance')">Attendance</button><button onclick="page('summary')">📊 Monthly Summary</button>
+</nav>
+<main id="app"><div class="card">Loading…</div></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ktrrjldiniwqryuojjnq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
+const API = SUPABASE_URL + "/rest/v1";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let session = null;
+const BRANCHES = ["Katrina's 1","Katrina's Bites","Katrinas 3","Katrina's Grill","Katrina's Kambingan","D' Sisters","Jeoff Consumer Goods Trading","Jeoff Laundry","K- Corner","Comissary"];
+let cam=null, locked=false, sameQrLocked=false, noQrTimer=null, lastScanToken="", lastScanAt=0, branches=[];
+const EMP_CACHE='bratt_employee_cache_v2', QUEUE_KEY='bratt_offline_queue_v1', LOCAL_ATT='bratt_local_attendance_v1';
+const BRANCH_CACHE='bratt_branch_cache_v2';
+const DEVICE_BIND='bratt_registered_phone_v1';
+let employeeSession=null, employeeBranch=null;
+
+function isEmployeeMode(){ const q=new URLSearchParams(location.search); return q.has('branch')||q.has('branchId'); }
+function getBranchToken(){ return new URLSearchParams(location.search).get('branch'); }
+function getBranchId(){ return new URLSearchParams(location.search).get('branchId'); }
+async function publicFetch(path, opts={}){
+  const headers={apikey:SUPABASE_KEY, Authorization:'Bearer '+SUPABASE_KEY, ...(opts.headers||{})};
+  const r=await fetch(API+path,{...opts,headers});
+  if(!r.ok){
+    let msg='HTTP '+r.status;
+    try{const b=await r.clone().json(); msg=b.message||b.hint||b.details||msg;}catch{}
+    throw new Error(msg);
+  }
+  return r;
+}
+function getCache(){ try{return JSON.parse(localStorage.getItem(EMP_CACHE)||'{}')}catch{return {}} }
+function setCache(x){localStorage.setItem(EMP_CACHE,JSON.stringify(x))}
+function getQueue(){ try{return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]')}catch{return []} }
+function setQueue(x){localStorage.setItem(QUEUE_KEY,JSON.stringify(x))}
+function getLocalAtt(){ try{return JSON.parse(localStorage.getItem(LOCAL_ATT)||'{}')}catch{return {}} }
+function setLocalAtt(x){localStorage.setItem(LOCAL_ATT,JSON.stringify(x))}
+async function sha256(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function initEmployeeMode(){
+  const token=getBranchToken(), branchId=getBranchId();
+  try{
+    if(navigator.onLine){
+      let br=[];
+      // Prefer branchId in the QR so verification still works if a token is stale or unavailable.
+      if(branchId){
+        const r=await publicFetch('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m');
+        if(r.ok) br=await r.json();
+      }
+      // Fallback to the QR token for older QR codes.
+      if(!br.length && token){
+        const r=await publicFetch('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m');
+        if(r.ok) br=await r.json();
+      }
+      if(br[0]){
+        employeeBranch=br[0];
+        localStorage.setItem(BRANCH_CACHE,JSON.stringify(br[0]));
+        try{
+          const r=await publicFetch('/employees?branch_id=eq.'+encodeURIComponent(employeeBranch.id)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+          if(!r.ok) throw new Error('Could not load employees ('+r.status+').');
+          const rows=await r.json();
+          setCachedEmployees(rows.map(e=>({id:e.id,employee_code:e.employee_code,full_name:e.full_name,position:e.position,branch_id:e.branch_id,active:true})));
+        }catch(e){ console.warn('Employee list refresh:',e); }
+      }
+    }
+  }catch(err){ console.warn('Branch verification:',err); }
+  if(!employeeBranch){try{employeeBranch=JSON.parse(localStorage.getItem(BRANCH_CACHE)||'null')}catch{}}
+  document.getElementById('authGate').style.display='none';
+  document.querySelector('header').style.display='none';
+  document.querySelector('nav').style.display='none';
+  document.getElementById('employeeGate').style.display='flex';
+  document.getElementById('branchLabel').textContent=employeeBranch?'Branch: '+employeeBranch.name:'Branch QR could not be verified on this phone.';
+  populateEmployeeSelect();
+  await syncQueue();
+}
+function getCachedEmployees(){try{return JSON.parse(localStorage.getItem(EMP_CACHE)||'[]')}catch{return []}}
+function getDeviceBind(){try{return JSON.parse(localStorage.getItem(DEVICE_BIND)||'null')}catch{return null}}
+function setDeviceBind(x){localStorage.setItem(DEVICE_BIND,JSON.stringify(x))}
+function clearEmployeeSelectionUI(){
+  const sel=document.getElementById('empSelect'), rb=document.getElementById('registerPhoneBtn'), ab=document.getElementById('attendanceStartBtn');
+  const bind=getDeviceBind();
+  if(bind){
+    sel.innerHTML='<option value="'+esc(bind.employee_code)+'">'+esc(bind.full_name)+' — '+esc(bind.employee_code)+'</option>';
+    sel.value=bind.employee_code; sel.disabled=true;
+    rb.style.display='none';
+    ab.style.display='block';
+  }else{
+    sel.disabled=false; rb.style.display='block'; ab.style.display='block';
+  }
+}
+function setCachedEmployees(x){localStorage.setItem(EMP_CACHE,JSON.stringify(x))}
+function populateEmployeeSelect(){
+  const sel=document.getElementById('empSelect'); if(!sel)return;
+  const list=getCachedEmployees().filter(e=>e.active!==false && (!employeeBranch || Number(e.branch_id)===Number(employeeBranch.id)));
+  const bind=getDeviceBind();
+  if(bind){
+    const match=list.find(e=>String(e.id)===String(bind.employee_id)||e.employee_code===bind.employee_code);
+    if(match){
+      sel.innerHTML='<option value="'+esc(match.employee_code)+'">'+esc(match.full_name)+' — '+esc(match.employee_code)+'</option>';
+      sel.value=match.employee_code; sel.disabled=true;
+      document.getElementById('registerPhoneBtn').style.display='none';
+      document.getElementById('attendanceStartBtn').style.display='block';
+      document.getElementById('empMsg').innerHTML='<span class="ok">📱 This phone is registered to '+esc(match.full_name)+'.</span>';
+    }else{
+      sel.innerHTML='<option value="">Registered employee is not assigned to this branch.</option>';
+      sel.disabled=true;
+      document.getElementById('registerPhoneBtn').style.display='none';
+      document.getElementById('attendanceStartBtn').style.display='none';
+      document.getElementById('empMsg').innerHTML='<span class="bad">🚫 This phone is registered to another employee or branch.</span>';
+    }
+    return;
+  }
+  sel.disabled=false;
+  sel.innerHTML='<option value="">Select your name</option>'+list.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
+  document.getElementById('registerPhoneBtn').style.display='block';
+  document.getElementById('attendanceStartBtn').style.display='block';
+}
+function getPosition(){return new Promise((resolve,reject)=>{
+  if(!navigator.geolocation)return reject(new Error('Location is not available on this phone.'));
+  navigator.geolocation.getCurrentPosition(p=>resolve(p),e=>reject(new Error('Please allow Location/GPS to verify that you are inside the branch.')), {enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+})}
+function distanceMeters(lat1,lon1,lat2,lon2){const R=6371000,rad=Math.PI/180,dLat=(lat2-lat1)*rad,dLon=(lon2-lon1)*rad;const a=Math.sin(dLat/2)**2+Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(a));}
+async function verifyInsideBranch(){
+  if(!employeeBranch || employeeBranch.latitude==null || employeeBranch.longitude==null) throw new Error('This branch location is not set yet. Ask the Supervisor to set the branch location first.');
+  const pos=await getPosition();
+  const lat=pos.coords.latitude, lon=pos.coords.longitude, acc=Number(pos.coords.accuracy||9999);
+  const dist=distanceMeters(lat,lon,Number(employeeBranch.latitude),Number(employeeBranch.longitude));
+  const radius=Number(employeeBranch.radius_m||75);
+  if(dist > radius) throw new Error('You are outside '+employeeBranch.name+'. Attendance is allowed only inside the branch area.');
+  return {dist,acc};
+}
+function openNoPhoneAssist(){
+  const modal=document.getElementById('noPhoneModal');
+  modal.style.display='flex';
+  document.getElementById('assistMsg').textContent='';
+  document.getElementById('assistPanel').style.display='none';
+  document.getElementById('assistEmail').value='';
+  document.getElementById('assistPassword').value='';
+}
+async function closeNoPhoneAssist(){
+  try{if(session) await sb.auth.signOut();}catch(e){}
+  session=null;
+  document.getElementById('noPhoneModal').style.display='none';
+}
+async function supervisorAssistLogin(){
+  const email=document.getElementById('assistEmail').value.trim();
+  const password=document.getElementById('assistPassword').value;
+  const m=document.getElementById('assistMsg');
+  if(!navigator.onLine){m.innerHTML='<span class="bad">Supervisor-assisted attendance needs internet.</span>';return;}
+  if(!email||!password){m.innerHTML='<span class="bad">Enter the Supervisor email and password.</span>';return;}
+  m.textContent='Signing in…';
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
+  session=data.session;
+  try{
+    const rows=await api('/employees?branch_id=eq.'+encodeURIComponent(employeeBranch.id)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+    if(!rows.length) throw new Error('No active employees are assigned to this branch.');
+    document.getElementById('assistEmp').innerHTML=rows.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
+    document.getElementById('assistPanel').style.display='block';
+    m.innerHTML='<span class="ok">✅ Supervisor verified. Select the employee and record attendance.</span>';
+  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';}
+}
+async function supervisorAssistRecord(type){
+  const m=document.getElementById('assistMsg');
+  const code=document.getElementById('assistEmp').value;
+  const rows=await api('/employees?employee_code=eq.'+encodeURIComponent(code)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
+  const e=rows[0];
+  if(!e){m.innerHTML='<span class="bad">Employee not found.</span>';return;}
+  if(Number(e.branch_id)!==Number(employeeBranch.id)){m.innerHTML='<span class="bad">Employee is not assigned to this branch.</span>';return;}
+  try{
+    const pos=await verifyInsideBranch();
+    const d=today();
+    const existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(e.id)+'&attendance_date=eq.'+encodeURIComponent(d)+'&select=id,employee_id,branch_id,attendance_date,time_in,time_out');
+    const now=new Date().toISOString();
+    if(type==='in'){
+      if(existing[0]?.time_in){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' already has TIME IN today.</span>';return;}
+      const r=await api('/attendance',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({employee_id:e.id,branch_id:employeeBranch.id,attendance_date:d,time_in:now})});
+      if(!r.ok) throw new Error('Could not save TIME IN ('+r.status+').');
+      m.innerHTML='<span class="ok">✅ TIME IN recorded for '+esc(e.full_name)+'. GPS: '+Math.round(pos.dist)+' m from branch.</span>';
+    }else{
+      if(new Date().getHours()<12){m.innerHTML='<span class="bad">TIME OUT is locked until 12:00 PM.</span>';return;}
+      if(!existing[0]?.time_in){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' has no TIME IN today.</span>';return;}
+      if(existing[0].time_out){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' already has TIME OUT today.</span>';return;}
+      const r=await api('/attendance?id=eq.'+encodeURIComponent(existing[0].id),{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({time_out:now})});
+      if(!r.ok) throw new Error('Could not save TIME OUT ('+r.status+').');
+      m.innerHTML='<span class="ok">✅ TIME OUT recorded for '+esc(e.full_name)+'. GPS: '+Math.round(pos.dist)+' m from branch.</span>';
+    }
+  }catch(err){m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';}
+}
+async function supervisorAssistLogout(){
+  try{await sb.auth.signOut();}catch(e){}
+  session=null;
+  document.getElementById('assistPanel').style.display='none';
+  document.getElementById('assistPassword').value='';
+  document.getElementById('assistMsg').innerHTML='<span class="muted">Supervisor session finished.</span>';
+}
+async function employeeSync(){
+  const m=document.getElementById('empMsg');
+  if(!navigator.onLine){m.innerHTML='<span class="bad">Offline. Connect once to refresh the employee list.</span>';return;}
+  // If the QR was opened without a resolved branch, retry the branch lookup from the URL.
+  if(!employeeBranch){
+    try{
+      const token=getBranchToken(), branchId=getBranchId(); let br=[];
+      if(branchId){const r=await publicFetch('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m'); if(r.ok) br=await r.json();}
+      if(!br.length && token){const r=await publicFetch('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m'); if(r.ok) br=await r.json();}
+      if(br[0]){employeeBranch=br[0];localStorage.setItem(BRANCH_CACHE,JSON.stringify(br[0]));}
+    }catch(e){}
+  }
+  if(!employeeBranch){m.innerHTML='<span class="bad">Branch QR could not be verified. Please scan the latest Branch QR from the live HTTPS site.</span>';return;}
+  m.textContent='Refreshing employee list…';
+  try{
+    const r=await publicFetch('/employees?branch_id=eq.'+encodeURIComponent(employeeBranch.id)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+    if(!r.ok) throw new Error('Could not load employees ('+r.status+').');
+    const rows=await r.json();
+    if(!rows.length)throw new Error('No active employees are assigned to '+employeeBranch.name+'.');
+    setCachedEmployees(rows.map(e=>({id:e.id,employee_code:e.employee_code,full_name:e.full_name,position:e.position,branch_id:e.branch_id,active:true})));
+    populateEmployeeSelect();
+    document.getElementById('branchLabel').textContent='Branch: '+employeeBranch.name;
+    m.innerHTML='<span class="ok">✅ Employee list refreshed. Select your name.</span>';
+  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';}
+}
+let employeeBusy=false;
+async function registerThisPhone(){
+  if(employeeBusy)return; employeeBusy=true;
+  const code=document.getElementById('empSelect').value,m=document.getElementById('empMsg');
+  if(!code){m.innerHTML='<span class="bad">Select your name first.</span>';employeeBusy=false;return;}
+  if(getDeviceBind()){m.innerHTML='<span class="bad">This phone is already registered to an employee.</span>';employeeBusy=false;return;}
+  const e=getCachedEmployees().find(x=>x.employee_code===code);
+  if(!e){m.innerHTML='<span class="bad">Employee is not available on this phone. Refresh the employee list.</span>';employeeBusy=false;return;}
+  if(!employeeBranch||Number(e.branch_id)!==Number(employeeBranch.id)){m.innerHTML='<span class="bad">🚫 This employee is not assigned to this branch.</span>';employeeBusy=false;return;}
+  m.textContent='Checking GPS and registering this phone…';
+  try{
+    await verifyInsideBranch();
+    setDeviceBind({employee_id:e.id,employee_code:e.employee_code,full_name:e.full_name,registeredAt:new Date().toISOString()});
+    populateEmployeeSelect();
+    m.innerHTML='<span class="ok">✅ This phone is now registered to '+esc(e.full_name)+'. Future attendance on this phone will use this employee automatically.</span>';
+  }catch(err){m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';}
+  finally{employeeBusy=false;}
+}
+async function employeeLogin(){
+  if(employeeBusy)return; employeeBusy=true;
+  const code=document.getElementById('empSelect').value,m=document.getElementById('empMsg');
+  if(!code){m.innerHTML='<span class="bad">Select your name first.</span>';employeeBusy=false;return;}
+  const bind=getDeviceBind();
+  if(!bind){m.innerHTML='<span class="bad">This phone is not registered yet. Register it first.</span>';employeeBusy=false;return;}
+  if(bind.employee_code!==code){m.innerHTML='<span class="bad">This phone is registered to another employee.</span>';employeeBusy=false;return;}
+  const e=getCachedEmployees().find(x=>x.employee_code===code);
+  if(!e){m.innerHTML='<span class="bad">Registered employee is not available on this branch. Refresh while online.</span>';employeeBusy=false;return;}
+  if(!employeeBranch||Number(e.branch_id)!==Number(employeeBranch.id)){m.innerHTML='<span class="bad">🚫 This registered employee is not assigned to this branch.</span>';employeeBusy=false;return;}
+  m.textContent='Checking GPS…';
+  try{await verifyInsideBranch();employeeSession=e;document.getElementById('employeeGate').style.display='none';renderEmployeeApp();}
+  catch(err){m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';}
+  finally{employeeBusy=false;}
+}
+function cachedBranchName(id){try{const x=JSON.parse(localStorage.getItem('bratt_branch_list')||'[]').find(b=>Number(b.id)===Number(id));return x?.name||'another branch'}catch{return 'another branch'}}
+async function cacheBranchList(){if(!navigator.onLine)return;try{const b=await publicFetch('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc').then(r=>r.json());localStorage.setItem('bratt_branch_list',JSON.stringify(b))}catch{}}
+function renderEmployeeApp(){
+  const att=getLocalAtt(); const d=today(); const key=employeeSession.id+'|'+d; const rec=att[key];
+  app.innerHTML='<div class="card center"><h2>📱 '+esc(employeeSession.full_name)+'</h2><p>'+esc(employeeBranch?.name||'Branch')+'</p>'+
+    (rec?.time_in&&!rec?.time_out?'<h2 class="ok">TIME IN: '+new Date(rec.time_in).toLocaleTimeString()+'</h2><button onclick="employeeTimeOut()">TIME OUT</button>':rec?.time_out?'<h2 class="ok">Attendance complete</h2><p>IN: '+new Date(rec.time_in).toLocaleTimeString()+'<br>OUT: '+new Date(rec.time_out).toLocaleTimeString()+'</p>':'<button onclick="employeeTimeIn()">TIME IN</button>')+
+    '<p id="empStatus" class="small muted">'+(navigator.onLine?'Online':'Offline')+' • attendance saves on this phone and syncs automatically when internet returns.'+(getQueue().length?' • <b>'+getQueue().length+' attendance pending sync</b>':'')+'</p><button onclick="employeeLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Log Out</button></div>';
+}
+function employeeLogout(){employeeSession=null;location.reload()}
+async function employeeTimeIn(){
+  const d=today(), key=employeeSession.id+'|'+d, att=getLocalAtt();
+  if(att[key]?.time_in){return renderEmployeeApp()}
+  try{await verifyInsideBranch()}catch(e){document.getElementById('empStatus').innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';return}
+  const now=new Date().toISOString();
+  att[key]={employee_id:employeeSession.id,branch_id:employeeBranch.id,attendance_date:d,time_in:now,time_out:null,attendance_id:null};
+  setLocalAtt(att);
+  enqueue({type:'in',employee_id:employeeSession.id,branch_id:employeeBranch.id,attendance_date:d,time_in:now});
+  await syncQueue();
+  const pending=getQueue().length, syncErr=localStorage.getItem('bratt_last_sync_error');
+  renderEmployeeApp();
+  if(pending){document.getElementById('empStatus').innerHTML='<span class="bad">⚠️ TIME IN is saved on this phone but not yet in the central attendance database. '+esc(syncErr||'Sync pending.')+'</span>';}
+}
+async function employeeTimeOut(){
+  const d=today(), key=employeeSession.id+'|'+d, att=getLocalAtt(), rec=att[key];
+  if(!rec?.time_in)return;
+  try{await verifyInsideBranch()}catch(e){document.getElementById('empStatus').innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';return}
+  const h=new Date().getHours();
+  if(h<12){document.getElementById('empStatus').innerHTML='<span class="bad">TIME OUT is locked until 12:00 PM.</span>';return}
+  if(rec.time_out)return;
+  const now=new Date().toISOString();
+  rec.time_out=now; att[key]=rec; setLocalAtt(att);
+  enqueue({type:'out',employee_id:employeeSession.id,attendance_id:rec.attendance_id||null,branch_id:employeeBranch.id,attendance_date:d,time_out:now});
+  await syncQueue(); renderEmployeeApp();
+}
+function enqueue(x){const q=getQueue();q.push({...x,queue_id:(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()))});setQueue(q)}
+async function syncQueue(){
+  if(!navigator.onLine)return;
+  const q=getQueue(); if(!q.length)return;
+  const remain=[];
+  for(const x of q){
+    try{
+      // Use an UPSERT for both IN and OUT. This avoids fragile employee/date
+      // filter URLs entirely and uses the table's unique(employee_id, attendance_date)
+      // constraint to find the correct attendance row.
+      const body={
+        employee_id:Number(x.employee_id),
+        branch_id:Number(x.branch_id),
+        attendance_date:x.attendance_date
+      };
+      if(x.type==='in') body.time_in=x.time_in;
+      if(x.type==='out'){
+        const local=getLocalAtt(), k=x.employee_id+'|'+x.attendance_date;
+        const rec=local[k];
+        if(rec?.time_in) body.time_in=rec.time_in;
+        body.time_out=x.time_out;
+      }
+      const r=await publicFetch('/attendance?on_conflict=employee_id%2Cattendance_date',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=representation'},
+        body:JSON.stringify(body)
+      });
+      const data=await r.json();
+      const row=Array.isArray(data)?data[0]:data;
+      if(!row?.id)throw new Error('Central database did not return the attendance record ID.');
+      const local=getLocalAtt(), k=x.employee_id+'|'+x.attendance_date;
+      if(local[k]){
+        local[k].attendance_id=row.id;
+        if(row.time_in)local[k].time_in=row.time_in;
+        if(row.time_out)local[k].time_out=row.time_out;
+        setLocalAtt(local);
+      }
+      try{localStorage.removeItem('bratt_last_sync_error')}catch{}
+    }catch(e){
+      remain.push(x);
+      console.warn('Attendance sync failed:',e);
+      try{localStorage.setItem('bratt_last_sync_error',String(e.message||e));}catch{}
+    }
+  }
+  setQueue(remain);
+}
+
+window.addEventListener('online',async()=>{await cacheBranchList();await syncQueue();if(employeeSession)renderEmployeeApp()});
+async function initAuth(){
+  if(isEmployeeMode()){await initEmployeeMode();return;}
+  await cacheBranchList();
+  const {data}=await sb.auth.getSession();
+  session=data.session;
+  renderAuth();
+  sb.auth.onAuthStateChange((_event,s)=>{session=s;renderAuth();});
+}
+function renderAuth(){
+  const gate=document.getElementById("authGate");
+  if(session){ gate.style.display="none"; } else { gate.style.display="flex"; stop(); }
+}
+async function login(){
+  const email=document.getElementById("loginEmail").value.trim();
+  const password=document.getElementById("loginPassword").value;
+  const m=document.getElementById("authMsg");
+  if(!email||!password){m.innerHTML='<span class="bad">Enter email and password.</span>';return;}
+  m.textContent="Signing in…";
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){
+    const msg=String(error.message||"");
+    if(/email not confirmed/i.test(msg)){m.innerHTML='<span class="bad">❌ Email not confirmed.</span><br><span class="muted small">Click “Resend Confirmation Email”, confirm it, then try Sign In again.</span>';return;}
+    m.innerHTML='<span class="bad">❌ '+esc(msg)+'</span>';return;
+  }
+  session=data.session; renderAuth(); page("dashboard");
+}
+async function resendConfirmation(){
+  const email=document.getElementById("loginEmail").value.trim();
+  const m=document.getElementById("authMsg");
+  if(!email){m.innerHTML='<span class="bad">Enter your supervisor email first.</span>';return;}
+  m.textContent="Sending confirmation email…";
+  const {error}=await sb.auth.resend({type:"signup",email});
+  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
+  m.innerHTML='<span class="ok">✅ Confirmation email sent. Check Inbox and Spam/Junk.</span>';
+}
+async function signup(){
+  const email=document.getElementById("loginEmail").value.trim();
+  const password=document.getElementById("loginPassword").value;
+  const m=document.getElementById("authMsg");
+  if(!email||password.length<6){m.innerHTML='<span class="bad">Enter an email and a password with at least 6 characters.</span>';return;}
+  m.textContent="Creating account…";
+  const {data,error}=await sb.auth.signUp({email,password});
+  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
+  if(data.session){session=data.session;renderAuth();page("dashboard");}
+  else m.innerHTML='<span class="ok">✅ Account created. Check your email for the confirmation link, then sign in.</span>';
+}
+async function logout(){await sb.auth.signOut();session=null;renderAuth();}
+
+async function api(path, opts={}){
+  const headers = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": "Bearer " + (session?.access_token || SUPABASE_KEY),
+    "Content-Type":"application/json",
+    "Accept":"application/json",
+    ...(opts.headers||{})
+  };
+  const r=await fetch(API+path,{...opts,headers});
+  const txt=await r.text();
+  let body; try{body=txt?JSON.parse(txt):null}catch{body=txt}
+  if(!r.ok) throw new Error((body&&body.message)||body?.hint||body?.details||("HTTP "+r.status));
+  return body;
+}
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const today=()=>new Date().toISOString().slice(0,10);
+
+async function loadBranches(){
+  branches=await api("/branches?select=id,name&order=id.asc");
+  if(!branches.length) throw new Error("No branches found in Supabase.");
+}
+function branchName(id){return branches.find(b=>String(b.id)===String(id))?.name||"Unknown";}
+
+async function page(x){
+  if(!session){renderAuth();return;}
+  stop();
+  app.innerHTML='<div class="card">Loading…</div>';
+  try{await loadBranches(); await ({dashboard,employees,branchqrs,attendance,summary}[x])();}
+  catch(e){app.innerHTML='<div class="card"><span class="bad">❌ '+esc(e.message)+'</span><p class="muted">Check that your Supabase tables, RLS policies, Project URL and publishable key are correct.</p></div>';}
+}
+
+async function dashboard(){
+  const d=today();
+  const r=await api("/attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&attendance_date=eq."+d+"&order=time_in.desc");
+  const em=await api("/employees?select=id&active=eq.true");
+  app.innerHTML=`<div class="card"><h2>Dashboard</h2><div class="grid">
+  <div class="card">Active Employees<div class="stat">${em.length}</div></div>
+  <div class="card">Attendance Today<div class="stat">${r.length}</div></div>
+  <div class="card">Timed In<div class="stat">${r.filter(x=>x.time_in&&!x.time_out).length}</div></div>
+  <div class="card">Completed<div class="stat">${r.filter(x=>x.time_in&&x.time_out).length}</div></div>
+  </div></div>
+  <div class="card"><h3>Connection</h3><span class="ok">● Connected to central Supabase database</span><p class="muted small">All branch devices using this online version read and write the same attendance database.</p></div>`;
+}
+
+async function employees(){
+  const em=await api("/employees?select=id,employee_code,full_name,position,branch_id,qr_token,active&order=id.asc");
+  app.innerHTML=`<div class="card"><h2>Add Employee</h2>
+  <div class="grid"><input id="ename" placeholder="Full name"><input id="epos" placeholder="Position">
+  <select id="ebr">${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("")}</select></div>
+  <p><button onclick="addEmployee()">Add Employee</button></p>
+  <p class="muted small">Employees register their own phone biometric/passkey from the Branch QR page. No employee PIN is stored.</p></div>
+  <div class="card"><h2>Employees</h2><table><tr><th>ID</th><th>Name</th><th>Branch</th><th>Status</th><th></th></tr>
+  ${em.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(branchName(e.branch_id))}</td><td>${e.active?"Active":"Inactive"}</td><td><button onclick="editEmployee(${e.id})">Edit</button></td></tr>`).join("")}
+  </table></div>`;
+}
+function token(){return crypto.randomUUID ? crypto.randomUUID().replaceAll("-","") : Math.random().toString(36).slice(2)+Date.now();}
+async function addEmployee(){
+  const name=ename.value.trim(); if(!name)return alert("Enter employee name");
+  const existing=await api("/employees?select=id"); const code="EMP-"+String(existing.length+1).padStart(4,"0");
+  try{
+    await api("/employees",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({employee_code:code,full_name:name,position:epos.value.trim(),branch_id:Number(ebr.value),qr_token:token(),active:true})});
+    await employees();
+  }catch(e){alert("Could not add employee: "+e.message);}
+}
+async function editEmployee(id){
+  try{
+    const rows=await api("/employees?id=eq."+id+"&select=id,employee_code,full_name,position,branch_id,active,qr_token");
+    const e=rows[0]; if(!e) return alert("Employee not found.");
+    app.innerHTML=`<div class="card"><h2>Edit Employee</h2>
+      <p class="muted small">Employee ID: ${esc(e.employee_code)}. The existing QR code will stay the same.</p>
+      <div class="grid">
+        <input id="editName" value="${esc(e.full_name)}" placeholder="Full name">
+        <input id="editPos" value="${esc(e.position||"")}" placeholder="Position">
+        <select id="editBranch">${branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(e.branch_id)?"selected":""}>${esc(b.name)}</option>`).join("")}</select>
+        <select id="editActive">
+          <option value="true" ${e.active?"selected":""}>Active</option>
+          <option value="false" ${!e.active?"selected":""}>Inactive</option>
+        </select>
+      </div>
+      <p>
+        <button onclick="saveEmployee(${e.id})">Save Changes</button>
+        <button onclick="employees()">Cancel</button>
+      </p>
+    </div>`;
+  }catch(err){alert("Could not load employee: "+err.message);}
+}
+async function saveEmployee(id){
+  const name=document.getElementById("editName").value.trim();
+  const pos=document.getElementById("editPos").value.trim();
+  const branchId=Number(document.getElementById("editBranch").value);
+  const active=document.getElementById("editActive").value==="true";
+  if(!name) return alert("Enter employee name");
+  try{
+    const updated = await api("/employees?id=eq."+id,{
+      method:"PATCH",
+      headers:{"Prefer":"return=representation"},
+      body:JSON.stringify({full_name:name,position:pos,branch_id:branchId,active})
+    });
+    if(!updated || !updated.length) throw new Error("No employee was updated. Please check the Supabase UPDATE policy.");
+    alert("Employee updated successfully.");
+    await employees();
+  }catch(err){
+    alert("Could not update employee: "+err.message+"\\n\\nIf this says permission/RLS, we need to enable the employees UPDATE policy in Supabase.");
+  }
+}
+
+async function branchqrs(){
+  const rows=await api('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc');
+  app.innerHTML='<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">'+rows.map(b=>'<div class="card center"><h3>'+esc(b.name)+'</h3><div id="bqr'+b.id+'" style="display:flex;justify-content:center"></div><p class="small "'+(b.latitude!=null?'ok':'bad')+'>'+(b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set')+'</p><button onclick="printBranchQR('+b.id+')">Print QR</button> <button onclick="setBranchLocation('+b.id+')" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button></div>').join('')+'</div></div>';
+  rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
+}
+async function setBranchLocation(id){
+  const b=branches.find(x=>Number(x.id)===Number(id));
+  if(!b)return;
+  if(!window.isSecureContext && location.hostname!=='localhost')return alert('Location/GPS needs HTTPS. Open the Netlify HTTPS link, not a local HTML file.');
+  if(!navigator.geolocation)return alert('This device/browser does not support GPS location.');
+  if(!confirm('Set the current GPS location as the official location for '+b.name+'?\n\nStand physically inside the branch before continuing.'))return;
+  const btns=[...document.querySelectorAll('button')];
+  btns.forEach(x=>{if(x.textContent.includes('Set Location'))x.disabled=true});
+  try{
+    const p=await new Promise((resolve,reject)=>{
+      navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+    });
+    const acc=Number(p.coords.accuracy||9999);
+    if(!Number.isFinite(p.coords.latitude)||!Number.isFinite(p.coords.longitude))throw new Error('GPS returned an invalid location.');
+    if(acc>150 && !confirm('GPS accuracy is about '+Math.round(acc)+' m. Save this location anyway?\n\nIf this is a laptop without GPS, open the Supervisor page on a phone while physically inside the branch and set the location there.'))return;
+    const radius=prompt('Allowed radius in meters (recommended 50–100):', String(b.radius_m||75));
+    if(radius===null)return;
+    if(!/^\d+(\.\d+)?$/.test(radius) || Number(radius)<10 || Number(radius)>1000)return alert('Radius must be between 10 and 1000 meters.');
+    await api('/branches?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({latitude:p.coords.latitude,longitude:p.coords.longitude,radius_m:Number(radius)})});
+    alert('✅ Branch location saved.\nGPS accuracy: about '+Math.round(acc)+' m\nAllowed radius: '+radius+' m');
+    await branchqrs();
+  }catch(e){
+    let msg=e.message||'Could not save location.';
+    if(e.code===1)msg='Location permission was denied. Turn on Location/GPS and allow this website to use your location, then try again.';
+    if(e.code===2)msg='This device could not get a GPS fix. On a laptop, Wi-Fi location may be unavailable. Open the Supervisor page on an Android/iPhone at the branch, allow Location, then tap Set Location there.';
+    if(e.code===3)msg='GPS timed out. Turn on Location/GPS and try again.';
+    alert('❌ '+msg);
+  }finally{btns.forEach(x=>{if(x.textContent.includes('Set Location'))x.disabled=false});}
+}
+function printBranchQR(id){const card=document.getElementById('bqr'+id)?.parentElement;if(!card)return;const w=window.open('','_blank');w.document.write('<html><head><title>Branch QR</title></head><body>'+card.outerHTML+'</body></html>');w.document.close();w.print()}
+
+async function summary(){
+  const now=new Date();
+  const ym=new URLSearchParams(location.search).get('month') || now.toISOString().slice(0,7);
+  const monthVal=/^\d{4}-\d{2}$/.test(ym)?ym:now.toISOString().slice(0,7);
+  const [year,month]=monthVal.split('-').map(Number);
+  const start=monthVal+'-01';
+  const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
+  const end=monthVal+'-'+String(lastDay).padStart(2,'0');
+  const [em,att]=await Promise.all([
+    api('/employees?select=id,employee_code,full_name,position,branch_id,active&order=full_name.asc'),
+    api('/attendance?attendance_date=gte.'+start+'&attendance_date=lte.'+end+'&select=employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.asc')
+  ]);
+  const branchFilter=document.getElementById('summaryBranch')?.value||'all';
+  const employees=em.filter(e=>branchFilter==='all'||String(e.branch_id)===String(branchFilter));
+  const byEmp={};
+  att.forEach(a=>{(byEmp[a.employee_id]??=[]).push(a)});
+  // Default work schedule: Monday–Saturday. Sunday is an off day and is not counted absent.
+  const scheduledDates=[];
+  for(let day=1;day<=lastDay;day++){
+    const dt=new Date(Date.UTC(year,month-1,day));
+    const iso=dt.getUTCDay(); // 0 Sun ... 6 Sat
+    if(iso!==0)scheduledDates.push(monthVal+'-'+String(day).padStart(2,'0'));
+  }
+  const rows=employees.map(e=>{
+    const records=byEmp[e.id]||[];
+    const presentDates=new Set(records.filter(a=>a.time_in).map(a=>a.attendance_date));
+    const present=scheduledDates.filter(d=>presentDates.has(d)).length;
+    const absent=Math.max(0,scheduledDates.length-present);
+    let hours=0;
+    records.forEach(a=>{if(a.time_in&&a.time_out){hours+=(new Date(a.time_out)-new Date(a.time_in))/3600000;}});
+    return {e,present,absent,hours};
+  });
+  const totalPresent=rows.reduce((n,r)=>n+r.present,0), totalAbsent=rows.reduce((n,r)=>n+r.absent,0);
+  app.innerHTML=`<div class="card"><h2>📊 Monthly Attendance Summary</h2>
+    <div class="grid"><input id="summaryMonth" type="month" value="${monthVal}" onchange="loadSummaryMonth()">
+      <select id="summaryBranch" onchange="summary()"><option value="all">All branches</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select>
+    </div>
+    <p class="muted small">Absent is calculated automatically using the current default schedule: <b>Monday–Saturday</b>. Sundays are off and are not counted absent. A day counts as present when there is a valid TIME IN.</p>
+    <p><button onclick="summaryCSV()">Export Monthly CSV</button></p>
+    <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present entries<div class="stat">${totalPresent}</div></div><div class="card">Absent entries<div class="stat">${totalAbsent}</div></div></div>
+    <table><tr><th>Employee</th><th>Branch</th><th>Duty / Present</th><th>Absent</th><th>Total Hours</th></tr>
+    ${rows.map(r=>`<tr><td>${esc(r.e.full_name)}<br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td><td class="ok">${r.present}</td><td class="bad">${r.absent}</td><td>${r.hours.toFixed(2)}</td></tr>`).join('')}</table>
+  </div>`;
+}
+function loadSummaryMonth(){
+  const v=document.getElementById('summaryMonth')?.value;if(v)history.replaceState(null,'','?month='+encodeURIComponent(v));summary();
+}
+async function summaryCSV(){
+  const month=document.getElementById('summaryMonth')?.value||new Date().toISOString().slice(0,7);
+  const branch=document.getElementById('summaryBranch')?.value||'all';
+  const qs='?month='+encodeURIComponent(month)+'&branch='+encodeURIComponent(branch);
+  // Rebuild the same calculation in a compact way by reading the rendered table.
+  const table=app.querySelector('table'); if(!table)return;
+  const rows=[['Employee Code','Employee','Branch','Present / Duty Days','Absent Days','Total Hours']];
+  [...table.querySelectorAll('tr')].slice(1).forEach(tr=>rows.push([...tr.children].map(td=>td.innerText.replace(/\n/g,' ').trim())));
+  const blob=new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='monthly-attendance-'+month+'.csv';a.click();URL.revokeObjectURL(a.href);
+}
+
+async function attendance(){
+  const r=await api("/attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc,time_in.desc&limit=500");
+  const em=await api("/employees?select=id,employee_code,full_name");
+  const en=id=>{const x=em.find(e=>e.id===id);return x?x.full_name+" ("+x.employee_code+")":"Unknown";};
+  app.innerHTML=`<div class="card"><h2>Central Attendance Records</h2><button onclick="csv()">Export CSV</button>
+  <table><tr><th>Date</th><th>Employee</th><th>Branch</th><th>Time In</th><th>Time Out</th></tr>
+  ${r.map(x=>`<tr><td>${esc(x.attendance_date)}</td><td>${esc(en(x.employee_id))}</td><td>${esc(branchName(x.branch_id))}</td><td>${x.time_in?new Date(x.time_in).toLocaleTimeString():"—"}</td><td>${x.time_out?new Date(x.time_out).toLocaleTimeString():"—"}</td></tr>`).join("")}
+  </table></div>`;
+}
+async function csv(){
+  const r=await api("/attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc&limit=5000");
+  const em=await api("/employees?select=id,employee_code,full_name");
+  const en=id=>{const x=em.find(e=>e.id===id);return x?x.full_name+" ("+x.employee_code+")":"Unknown";};
+  const rows=[["Date","Employee","Branch","Time In","Time Out"],...r.map(x=>[x.attendance_date,en(x.employee_id),branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():"",x.time_out?new Date(x.time_out).toLocaleString():""])];
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(",")).join("\\n")],{type:"text/csv"}));a.download="attendance-online.csv";a.click();
+}
+try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}}catch{} initAuth();
+</script>
+</body>
+</html>
