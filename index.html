@@ -231,7 +231,7 @@ async function supervisorAssistLogout(){
   document.getElementById('assistPassword').value='';
   document.getElementById('assistMsg').innerHTML='<span class="muted">Supervisor session finished.</span>';
 }
-async async function employeeSync(){
+async function employeeSync(){
   const m=document.getElementById('empMsg');
   if(!navigator.onLine){m.innerHTML='<span class="bad">Offline. Connect once to refresh the employee list.</span>';return;}
   // If the QR was opened without a resolved branch, retry the branch lookup from the URL.
