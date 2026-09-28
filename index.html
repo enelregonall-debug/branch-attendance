@@ -49,6 +49,20 @@ tr:hover td{background:#fbfcfe}
 #employeeGate{background:linear-gradient(135deg,#eef2f7,#f8fafc)!important}
 .logout{float:right;background:#fff;color:var(--ink);border:1px solid #ccd3df}
 .authmsg{margin-top:12px;min-height:20px}
+/* Theme options */
+body.theme-navy{--ink:#172033;--ink2:#263451;--gold:#d6a84f;--bg:#f5f7fb;--card:#fff;--line:#e6eaf0;--muted:#667085;background:linear-gradient(180deg,#f7f8fb,#f2f5f9)}
+body.theme-navy header{background:linear-gradient(135deg,#111a2b,#1f2d49 65%,#283b5d)}
+body.theme-navy th{background:#f7f8fb;color:#475467}
+body.theme-navy .pill{background:#eef2ff;color:#344054}
+body.theme-green{--ink:#174d3b;--ink2:#236b52;--gold:#c9a227;--bg:#f4faf7;--card:#fff;--line:#dcebe4;--muted:#66756e;background:linear-gradient(180deg,#f8fcfa,#eef7f2)}
+body.theme-green header{background:linear-gradient(135deg,#123c30,#1d6049 65%,#2b7a5d)}
+body.theme-green th{background:#f0f8f4;color:#174d3b}
+body.theme-green .pill{background:#e7f5ee;color:#174d3b}
+body.theme-notebook{--ink:#3e3428;--ink2:#5d4b39;--gold:#b78b45;--bg:#faf8f2;--card:#fffdf8;--line:#e6dfd1;--muted:#756b5d;background:#f7f3e9}
+body.theme-notebook header{background:linear-gradient(135deg,#6d4c35,#8a6446 65%,#a17a55)}
+body.theme-notebook main{background-image:linear-gradient(rgba(120,100,70,.06) 1px,transparent 1px);background-size:100% 28px}
+body.theme-notebook th{background:#f4efe4;color:#5d4b39}
+body.theme-notebook .pill{background:#eee6d7;color:#5d4b39}
 @media(max-width:700px){
   header{padding:18px 15px}
   nav{padding:9px;gap:6px}
@@ -59,7 +73,9 @@ tr:hover td{background:#fbfcfe}
   table{font-size:13px;display:block;overflow-x:auto;white-space:nowrap}
   td,th{padding:8px}
   .grid{grid-template-columns:1fr}
+  nav label{margin-left:0!important;width:100%;justify-content:flex-end}
 }
+
 </style>
 </head>
 <body>
@@ -69,7 +85,7 @@ tr:hover td{background:#fbfcfe}
 <button onclick="page('dashboard')">Dashboard</button>
 <button onclick="page('employees')">Employees</button>
 <button onclick="page('branchqrs')">🏪 Branch QR</button>
-<button onclick="page('attendance')">Attendance</button><button onclick="page('summary')">📊 Monthly Summary</button>
+<button onclick="page('attendance')">Attendance</button><button onclick="page('summary')">📊 Monthly Summary</button><label style="display:flex;align-items:center;gap:6px;margin-left:auto"><span class="small">🎨 Theme</span><select id="themeSelect" onchange="setTheme(this.value)" style="padding:8px 10px"><option value="red">Red Classic</option><option value="navy">Navy & Gold</option><option value="green">Green Elegant</option><option value="notebook">Notebook Clean</option></select></label>
 </nav>
 <main id="app"><div class="card">Loading…</div></main>
 
@@ -108,6 +124,18 @@ function setQueue(x){localStorage.setItem(QUEUE_KEY,JSON.stringify(x))}
 function getLocalAtt(){ try{return JSON.parse(localStorage.getItem(LOCAL_ATT)||'{}')}catch{return {}} }
 function setLocalAtt(x){localStorage.setItem(LOCAL_ATT,JSON.stringify(x))}
 async function sha256(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function setTheme(theme){
+  const allowed=['red','navy','green','notebook'];
+  if(!allowed.includes(theme)) theme='red';
+  document.body.classList.remove('theme-navy','theme-green','theme-notebook');
+  if(theme!=='red') document.body.classList.add('theme-'+theme);
+  localStorage.setItem('bratt_theme',theme);
+  const el=document.getElementById('themeSelect'); if(el) el.value=theme;
+}
+function initTheme(){
+  const saved=localStorage.getItem('bratt_theme')||'red';
+  setTheme(saved);
+}
 async function initEmployeeMode(){
   const token=getBranchToken(), branchId=getBranchId();
   try{
@@ -704,7 +732,7 @@ async function csv(){
   const rows=[["DATE","EMP ID","NAME","BRANCH","TIME IN","TIME OUT"],...r.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||"Unknown",e?.full_name||"Unknown",branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():"",x.time_out?new Date(x.time_out).toLocaleString():""]})];
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(",")).join("\\n")],{type:"text/csv"}));a.download="attendance-online.csv";a.click();
 }
-try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}}catch{} initAuth();
+try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}}catch{} initTheme(); initAuth();
 </script>
 </body>
 </html>
