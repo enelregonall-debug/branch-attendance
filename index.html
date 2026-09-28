@@ -153,10 +153,22 @@ async function sha256(text){const b=await crypto.subtle.digest('SHA-256',new Tex
 function setTheme(theme){
   const allowed=['red','navy','green','notebook','blackgold','coffee','purple','sky','rose','terra'];
   if(!allowed.includes(theme)) theme='red';
-  document.body.classList.remove('theme-navy','theme-green','theme-notebook');
+  document.body.classList.remove('theme-navy','theme-green','theme-notebook','theme-blackgold','theme-coffee','theme-purple','theme-sky','theme-rose','theme-terra');
   if(theme!=='red') document.body.classList.add('theme-'+theme);
   localStorage.setItem('bratt_theme',theme);
   const el=document.getElementById('themeSelect'); if(el) el.value=theme;
+}
+function setFont(font){
+  const allowed=['antiqua','poppins','georgia','garamond','trebuchet','verdana'];
+  if(!allowed.includes(font)) font='antiqua';
+  document.body.classList.remove('font-antiqua','font-poppins','font-georgia','font-garamond','font-trebuchet','font-verdana');
+  document.body.classList.add('font-'+font);
+  localStorage.setItem('bratt_font',font);
+  const el=document.getElementById('fontSelect'); if(el) el.value=font;
+}
+function initFont(){
+  const saved=localStorage.getItem('bratt_font')||'antiqua';
+  setFont(saved);
 }
 function initTheme(){
   const saved=localStorage.getItem('bratt_theme')||'red';
@@ -758,7 +770,7 @@ async function csv(){
   const rows=[["DATE","EMP ID","NAME","BRANCH","TIME IN","TIME OUT"],...r.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||"Unknown",e?.full_name||"Unknown",branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():"",x.time_out?new Date(x.time_out).toLocaleString():""]})];
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(",")).join("\\n")],{type:"text/csv"}));a.download="attendance-online.csv";a.click();
 }
-try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}}catch{} initTheme(); initAuth();
+try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}}catch{} initTheme(); initTheme(); initFont(); initAuth();
 </script>
 </body>
 </html>
