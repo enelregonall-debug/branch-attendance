@@ -145,6 +145,39 @@ body.compact-tables table td{font-size:.9rem}
 <script>
 const SUPABASE_URL = "https://ktrrjldiniwqryuojjnq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
+const DAILY_RATE_IMPORT_20260928 = {
+"LLANO, GERLENE L.":533.33,"ASUNCION, BENJAMEN C.":300,"BORRES, RUBELYN R.":250,"GAY-OD, SHIELA":366.66,"GEMPESAW, MYLEN":250,"OSIO, FLORAMAE":250,"RABASANO FE":333.33,
+"COTIC, MAYBE L.":250,"ROSAGARAN, SARAH":400,"BACLAAN, ESTER":250,"ROGON, VICTORIA":400,"MEJORADA, JOYLEN":200,"AVERGANZADO, ANITA":250,
+"BALAG, KYLA MARIE":266.66,"CABALLERO, KRISNA":350,"GACIS, MICO BRYLLE":250,"MALBASIAS, JACK":350,"MONTOJO, CYNTHIA G":666.66,
+"PALEN, WILLIAM JR.":500,"PENONG, MARITES":300,"SARANI, ROSELA":250,"SILAGAN, MARY ANN":250,"TALICUSAY, MARYGRACE":300,
+"AGONIA, PERPETUA":350,"ALFONSO, JEANY":300,"SARO, JHOY":300,"CARTALLA, JOMEL":350,"MANGAPIS, RUTH":250,"FLOJO, GRACE":500,
+"FUENTES,VIRGIE R.":400,"GOMEZ, MARCELINA R.":500,"TALICUSAY, RENIEL":266.66,"DELAPA, ROSEMARE M.":400,"LOPEZ, PEDILA S.":400,
+"RUELAN, ROSALINDA":266.66,"TALICUSAY, MANELYN":266.66,"SANDOVAL, ANGEL":250,"LOPEZ, RADING":300,"ELEJORDE, MERYROSE":250,
+"DALAGO, ROLAND":500,"GOMEZ, ROEL Q.":350,"LARA, ANTONIO":600,"LUMAGOD, ARLENE L.":500,"TABULADO, BERNARD":283.33,
+"AGUILON, JAYSON":250,"AYUBAN, MARGIE":300,"BASBAS, ABEL":250,"DEJON, ANGEL V.":400,"LUMAGOD, EMILDA":250,"MORA, LOLITA":400,
+"OSIO, MARYCRIS E.":300,"PAGAR, NORMELITA P":400,"PEPITO, JEMAR":333.33,"GEONSON, MARIFEL":250,"PROCORATO, ANGEL JR.":400,
+"CALO-OY, MIRLY G.":250,"MANTOG, CLAIDE Q.":250,"LUMAGOD, KIANJAY B.":250,"GALINDO, ANNALUNA B.":250,"MUCA, PERFECTO L.":250,
+"ALQUIZAR, KEITHGEMM M.":250,"SERAG, DANICA ROSE":250,"ACTIVA, LJ MAE P.":250,"TUNGGAY, VILMA":250
+};
+async function syncImportedDailyRates(){
+  const key='bratt_daily_rate_import_20260928_v1';
+  if(localStorage.getItem(key)==='done' || !session) return;
+  try{
+    const {data,error}=await sb.from('employees').select('id,full_name');
+    if(error||!Array.isArray(data)) return;
+    let updated=0;
+    for(const e of data){
+      const name=String(e.full_name||'').trim();
+      const rate=DAILY_RATE_IMPORT_20260928[name];
+      if(rate==null) continue;
+      const {error:ue}=await sb.from('employees').update({daily_rate:rate}).eq('id',e.id);
+      if(!ue) updated++;
+    }
+    localStorage.setItem(key,'done');
+    console.log('Daily rate import complete:',updated);
+  }catch(err){console.warn('Daily rate import failed:',err);}
+}
+
 const API = SUPABASE_URL + "/rest/v1";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let session = null;
@@ -569,7 +602,7 @@ async function initAuth(){
 }
 function renderAuth(){
   const gate=document.getElementById("authGate");
-  if(session){ gate.style.display="none"; } else { gate.style.display="flex"; stop(); }
+  if(session){ gate.style.display="none"; syncImportedDailyRates(); } else { gate.style.display="flex"; stop(); }
 }
 async function login(){
   const email=document.getElementById("loginEmail").value.trim();
@@ -583,7 +616,7 @@ async function login(){
     if(/email not confirmed/i.test(msg)){m.innerHTML='<span class="bad">❌ Email not confirmed.</span><br><span class="muted small">Click “Resend Confirmation Email”, confirm it, then try Sign In again.</span>';return;}
     m.innerHTML='<span class="bad">❌ '+esc(msg)+'</span>';return;
   }
-  session=data.session; renderAuth(); page("dashboard");
+  session=data.session; renderAuth(); syncImportedDailyRates(); page("dashboard");
 }
 async function resendConfirmation(){
   const email=document.getElementById("loginEmail").value.trim();
