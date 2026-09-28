@@ -63,6 +63,30 @@ body.theme-notebook header{background:linear-gradient(135deg,#6d4c35,#8a6446 65%
 body.theme-notebook main{background-image:linear-gradient(rgba(120,100,70,.06) 1px,transparent 1px);background-size:100% 28px}
 body.theme-notebook th{background:#f4efe4;color:#5d4b39}
 body.theme-notebook .pill{background:#eee6d7;color:#5d4b39}
+body.theme-blackgold{--ink:#171717;--ink2:#2a2a2a;--gold:#d4af37;--bg:#f5f5f5;--card:#fff;--line:#ddd;--muted:#666;background:#f4f4f4}
+body.theme-blackgold header{background:linear-gradient(135deg,#101010,#252525 65%,#3a321b)}
+body.theme-blackgold th{background:#f3f0e5;color:#5b4810}
+body.theme-blackgold .pill{background:#f4efdc;color:#5b4810}
+body.theme-coffee{--ink:#5b3a29;--ink2:#7b5239;--gold:#c79a63;--bg:#fbf5ed;--card:#fffdf9;--line:#eadbc9;--muted:#796b60;background:#faf3ea}
+body.theme-coffee header{background:linear-gradient(135deg,#4a2d20,#70452f 65%,#9a6948)}
+body.theme-coffee th{background:#f5eadc;color:#5b3a29}
+body.theme-coffee .pill{background:#f2e5d5;color:#5b3a29}
+body.theme-purple{--ink:#4a2868;--ink2:#693a8f;--gold:#c5a3e8;--bg:#faf7ff;--card:#fff;--line:#e7daf2;--muted:#75677f;background:#f8f4fc}
+body.theme-purple header{background:linear-gradient(135deg,#392052,#5b2f80 65%,#7b4aa0)}
+body.theme-purple th{background:#f4edf9;color:#4a2868}
+body.theme-purple .pill{background:#eee4f7;color:#4a2868}
+body.theme-sky{--ink:#155b78;--ink2:#207da3;--gold:#7dc6df;--bg:#f3fbfe;--card:#fff;--line:#d7eaf1;--muted:#637b86;background:#f1f9fc}
+body.theme-sky header{background:linear-gradient(135deg,#124c68,#1d7293 65%,#3c9bb8)}
+body.theme-sky th{background:#eaf6fa;color:#155b78}
+body.theme-sky .pill{background:#e0f2f7;color:#155b78}
+body.theme-rose{--ink:#8a3f55;--ink2:#a9566e;--gold:#d7a1b0;--bg:#fff7f9;--card:#fff;--line:#efdde2;--muted:#806d73;background:#fff5f7}
+body.theme-rose header{background:linear-gradient(135deg,#733246,#a34b63 65%,#c66b82)}
+body.theme-rose th{background:#faedf1;color:#8a3f55}
+body.theme-rose .pill{background:#f8e5eb;color:#8a3f55}
+body.theme-terra{--ink:#873f25;--ink2:#a85532;--gold:#d6a25f;--bg:#fff8f2;--card:#fffdf9;--line:#ecd9ca;--muted:#806e64;background:#fff6ef}
+body.theme-terra header{background:linear-gradient(135deg,#73351f,#a34e2f 65%,#c76b43)}
+body.theme-terra th{background:#faeee5;color:#873f25}
+body.theme-terra .pill{background:#f7e5d8;color:#873f25}
 @media(max-width:700px){
   header{padding:18px 15px}
   nav{padding:9px;gap:6px}
@@ -87,7 +111,7 @@ body.theme-notebook .pill{background:#eee6d7;color:#5d4b39}
 <button onclick="page('dashboard')">Dashboard</button>
 <button onclick="page('employees')">Employees</button>
 <button onclick="page('branchqrs')">🏪 Branch QR</button>
-<button onclick="page('attendance')">Attendance</button><button onclick="page('summary')">📊 Monthly Summary</button><label style="display:flex;align-items:center;gap:6px;margin-left:auto"><span class="small">🎨 Theme</span><select id="themeSelect" onchange="setTheme(this.value)" style="padding:8px 10px"><option value="red">Red Classic</option><option value="navy">Navy & Gold</option><option value="green">Green Elegant</option><option value="notebook">Notebook Clean</option></select></label>
+<button onclick="page('attendance')">Attendance</button><button onclick="page('summary')">📊 Monthly Summary</button><label style="display:flex;align-items:center;gap:6px;margin-left:auto"><span class="small">🎨 Theme</span><select id="themeSelect" onchange="setTheme(this.value)" style="padding:8px 10px"><option value="red">Red Classic</option><option value="navy">Navy & Gold</option><option value="green">Green Elegant</option><option value="notebook">Notebook Clean</option><option value="blackgold">Black & Gold</option><option value="coffee">Coffee & Cream</option><option value="purple">Royal Purple</option><option value="sky">Sky Blue</option><option value="rose">Soft Rose</option><option value="terra">Warm Terracotta</option></select></label>
 </nav>
 <main id="app"><div class="card">Loading…</div></main>
 
@@ -127,7 +151,7 @@ function getLocalAtt(){ try{return JSON.parse(localStorage.getItem(LOCAL_ATT)||'
 function setLocalAtt(x){localStorage.setItem(LOCAL_ATT,JSON.stringify(x))}
 async function sha256(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function setTheme(theme){
-  const allowed=['red','navy','green','notebook'];
+  const allowed=['red','navy','green','notebook','blackgold','coffee','purple','sky','rose','terra'];
   if(!allowed.includes(theme)) theme='red';
   document.body.classList.remove('theme-navy','theme-green','theme-notebook');
   if(theme!=='red') document.body.classList.add('theme-'+theme);
