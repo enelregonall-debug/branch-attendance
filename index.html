@@ -501,14 +501,15 @@ async function dashboard(){
 }
 
 async function employees(){
-  const em=await api("/employees?select=id,employee_code,full_name,position,branch_id,qr_token,active&order=id.asc");
+  const em=await api("/employees?select=id,employee_code,full_name,position,branch_id,daily_rate,qr_token,active&order=id.asc");
   app.innerHTML=`<div class="card"><h2>Add Employee</h2>
   <div class="grid"><input id="ename" placeholder="Full name"><input id="epos" placeholder="Position">
-  <select id="ebr">${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("")}</select></div>
+  <select id="ebr">${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("")}</select>
+  <input id="erate" type="number" min="0" step="0.01" placeholder="Daily Rate (₱)"></div>
   <p><button onclick="addEmployee()">Add Employee</button></p>
   <p class="muted small">Employees register their own phone biometric/passkey from the Branch QR page. No employee PIN is stored.</p></div>
-  <div class="card"><h2>Employees</h2><table><tr><th>ID</th><th>Name</th><th>Branch</th><th>Status</th><th></th></tr>
-  ${em.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(branchName(e.branch_id))}</td><td>${e.active?"Active":"Inactive"}</td><td><button onclick="editEmployee(${e.id})">Edit</button></td></tr>`).join("")}
+  <div class="card"><h2>Employees</h2><table><tr><th>ID</th><th>Name</th><th>Branch</th><th>Daily Rate</th><th>Status</th><th></th></tr>
+  ${em.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(branchName(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${e.active?"Active":"Inactive"}</td><td><button onclick="editEmployee(${e.id})">Edit</button></td></tr>`).join("")}
   </table></div>`;
 }
 function token(){return crypto.randomUUID ? crypto.randomUUID().replaceAll("-","") : Math.random().toString(36).slice(2)+Date.now();}
@@ -516,13 +517,13 @@ async function addEmployee(){
   const name=ename.value.trim(); if(!name)return alert("Enter employee name");
   const existing=await api("/employees?select=id"); const code="EMP-"+String(existing.length+1).padStart(4,"0");
   try{
-    await api("/employees",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({employee_code:code,full_name:name,position:epos.value.trim(),branch_id:Number(ebr.value),qr_token:token(),active:true})});
+    await api("/employees",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({employee_code:code,full_name:name,position:epos.value.trim(),branch_id:Number(ebr.value),daily_rate:Number(document.getElementById("erate").value||0),qr_token:token(),active:true})});
     await employees();
   }catch(e){alert("Could not add employee: "+e.message);}
 }
 async function editEmployee(id){
   try{
-    const rows=await api("/employees?id=eq."+id+"&select=id,employee_code,full_name,position,branch_id,active,qr_token");
+    const rows=await api("/employees?id=eq."+id+"&select=id,employee_code,full_name,position,branch_id,daily_rate,active,qr_token");
     const e=rows[0]; if(!e) return alert("Employee not found.");
     app.innerHTML=`<div class="card"><h2>Edit Employee</h2>
       <p class="muted small">Employee ID: ${esc(e.employee_code)}. The existing QR code will stay the same.</p>
@@ -530,6 +531,7 @@ async function editEmployee(id){
         <input id="editName" value="${esc(e.full_name)}" placeholder="Full name">
         <input id="editPos" value="${esc(e.position||"")}" placeholder="Position">
         <select id="editBranch">${branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(e.branch_id)?"selected":""}>${esc(b.name)}</option>`).join("")}</select>
+        <input id="editRate" type="number" min="0" step="0.01" value="${Number(e.daily_rate||0)}" placeholder="Daily Rate (₱)">
         <select id="editActive">
           <option value="true" ${e.active?"selected":""}>Active</option>
           <option value="false" ${!e.active?"selected":""}>Inactive</option>
@@ -547,12 +549,13 @@ async function saveEmployee(id){
   const pos=document.getElementById("editPos").value.trim();
   const branchId=Number(document.getElementById("editBranch").value);
   const active=document.getElementById("editActive").value==="true";
+  const dailyRate=Math.max(0,Number(document.getElementById("editRate").value||0));
   if(!name) return alert("Enter employee name");
   try{
     const updated = await api("/employees?id=eq."+id,{
       method:"PATCH",
       headers:{"Prefer":"return=representation"},
-      body:JSON.stringify({full_name:name,position:pos,branch_id:branchId,active})
+      body:JSON.stringify({full_name:name,position:pos,branch_id:branchId,daily_rate:dailyRate,active})
     });
     if(!updated || !updated.length) throw new Error("No employee was updated. Please check the Supabase UPDATE policy.");
     alert("Employee updated successfully.");
