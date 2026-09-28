@@ -535,7 +535,7 @@ async function employees(){
   const em=await api("/employees?select=id,employee_code,full_name,position,branch_id,daily_rate,qr_token,active&order=id.asc");
   app.innerHTML=`<div class="card"><h2>Add Employee</h2>
   <div class="grid"><input id="ename" placeholder="Full name"><input id="epos" placeholder="Position">
-  <select id="ebr">${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("")}</select>
+  <select id="ebr"><option value="">ANY BRANCH</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("")}</select>
   <input id="erate" type="number" min="0" step="0.01" placeholder="Daily Rate (₱)"></div>
   <p><button onclick="addEmployee()">Add Employee</button></p>
   <p class="muted small">Employees register their own phone biometric/passkey from the Branch QR page. No employee PIN is stored.</p></div>
@@ -561,7 +561,7 @@ async function editEmployee(id){
       <div class="grid">
         <input id="editName" value="${esc(e.full_name)}" placeholder="Full name">
         <input id="editPos" value="${esc(e.position||"")}" placeholder="Position">
-        <select id="editBranch">${branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(e.branch_id)?"selected":""}>${esc(b.name)}</option>`).join("")}</select>
+        <select id="editBranch"><option value="" ${e.branch_id==null?"selected":""}>ANY BRANCH</option>${branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(e.branch_id)?"selected":""}>${esc(b.name)}</option>`).join("")}</select>
         <input id="editRate" type="number" min="0" step="0.01" value="${Number(e.daily_rate||0)}" placeholder="Daily Rate (₱)">
         <select id="editActive">
           <option value="true" ${e.active?"selected":""}>Active</option>
@@ -578,7 +578,7 @@ async function editEmployee(id){
 async function saveEmployee(id){
   const name=document.getElementById("editName").value.trim();
   const pos=document.getElementById("editPos").value.trim();
-  const branchId=Number(document.getElementById("editBranch").value);
+  const branchValue=document.getElementById("editBranch").value; const branchId=branchValue===""?null:Number(branchValue);
   const active=document.getElementById("editActive").value==="true";
   const dailyRate=Math.max(0,Number(document.getElementById("editRate").value||0));
   if(!name) return alert("Enter employee name");
