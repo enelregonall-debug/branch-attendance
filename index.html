@@ -8,63 +8,63 @@
 <meta http-equiv="Expires" content="0">
 <title>Katrinas Digital Attendance</title>
 <link rel="manifest" href="manifest.json">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+
+
 <style>
 :root{
-  --red:#b51f2b;--red-dark:#8f1721;--gold:#e6b94f;--gold-soft:#fff5d8;
-  --ink:#202020;--muted:#6b7280;--bg:#f6f3ed;--card:#fffdf9;--line:#e8dfd0;
-  --green:#087443;--danger:#b42318;--shadow:0 8px 24px rgba(60,42,20,.08);
+  --ink:#172033;--ink2:#263451;--gold:#d6a84f;--gold2:#f3d58a;
+  --bg:#f5f7fb;--card:#ffffff;--line:#e6eaf0;--muted:#667085;
+  --green:#087443;--red:#b42318;--shadow:0 10px 30px rgba(23,32,51,.08);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{font-family:"Poppins",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;margin:0;background:var(--bg);color:var(--ink);line-height:1.45}
-header{background:linear-gradient(135deg,var(--red-dark),var(--red));color:#fff;padding:16px 22px;box-shadow:0 5px 18px rgba(143,23,33,.18);position:relative}
-.header-inner{max-width:1180px;margin:auto;display:flex;align-items:center;gap:14px}
-.brand-logo{width:58px;height:58px;object-fit:contain;background:#fff;border-radius:14px;padding:4px;box-shadow:0 3px 12px rgba(0,0,0,.18)}
-.brand-title{margin:0;font-size:22px;letter-spacing:-.3px}.brand-sub{margin:3px 0 0;opacity:.9;font-size:13px}
-nav{background:#fff;padding:10px 14px;display:flex;gap:7px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);box-shadow:0 3px 12px rgba(60,42,20,.06)}
-nav button{background:transparent;color:#4a3a2a;border:1px solid transparent;box-shadow:none;border-radius:9px;padding:9px 13px}
-nav button:hover{background:var(--gold-soft);color:var(--red-dark);box-shadow:none;transform:none}
-button,input,select{padding:10px 12px;border:1px solid #d8d0c4;border-radius:9px;font:inherit;transition:.18s ease}
-button{background:var(--red);color:#fff;cursor:pointer;font-weight:700;box-shadow:0 2px 6px rgba(143,23,33,.12)}
-button:hover{background:var(--red-dark);transform:translateY(-1px);box-shadow:0 5px 12px rgba(143,23,33,.16)}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;margin:0;background:linear-gradient(180deg,#f7f8fb 0%,#f2f5f9 100%);color:var(--ink);line-height:1.45}
+header{background:linear-gradient(135deg,#111a2b 0%,#1f2d49 65%,#283b5d 100%);color:#fff;padding:22px 20px;box-shadow:0 5px 20px rgba(17,26,43,.18);position:relative;overflow:hidden}
+header:after{content:"";position:absolute;width:180px;height:180px;border:1px solid rgba(243,213,138,.2);border-radius:50%;right:-55px;top:-85px}
+header h1,header h2,header h3{margin:0}
+nav{background:rgba(255,255,255,.94);backdrop-filter:blur(12px);padding:11px 14px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);box-shadow:0 4px 16px rgba(23,32,51,.05)}
+button,input,select{padding:10px 12px;border:1px solid #d7dce5;border-radius:10px;font:inherit;transition:.18s ease}
+button{background:var(--ink);color:#fff;cursor:pointer;font-weight:600;box-shadow:0 2px 5px rgba(23,32,51,.08)}
+button:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(23,32,51,.12)}
 button:active{transform:translateY(0)}
-input,select{background:#fffdf9;color:var(--ink)}
-input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(230,185,79,.18)}
-main{max-width:1180px;margin:auto;padding:22px 16px 42px}
-.card{background:var(--card);padding:20px;margin-bottom:16px;border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow)}
-.card h2{margin-top:0;color:#3a2520}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
-.stat{font-size:30px;font-weight:800;letter-spacing:-.5px;color:var(--red-dark)}
-table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;background:#fffdf9;border:1px solid var(--line);border-radius:10px}
+input,select{background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(214,168,79,.16)}
+main{max-width:1180px;margin:auto;padding:22px 16px 40px}
+.card{background:var(--card);padding:20px;margin-bottom:16px;border:1px solid rgba(230,234,240,.9);border-radius:16px;box-shadow:var(--shadow)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.stat{font-size:30px;font-weight:800;letter-spacing:-.5px;color:var(--ink)}
+table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:12px}
 td,th{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left}
-th{background:#faf1df;color:#5b4632;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
-tr:last-child td{border-bottom:0}tr:hover td{background:#fff8eb}
-.ok{color:var(--green);font-weight:700}.bad{color:var(--danger);font-weight:700}.muted{color:var(--muted)}
-#reader{max-width:500px;margin:auto}.center{text-align:center}.small{font-size:13px}
-.pill{display:inline-block;padding:5px 9px;border-radius:999px;background:var(--gold-soft);color:#6a4b10;font-weight:700}
-.notice{padding:12px 14px;border-radius:9px;background:#fff8e8;border:1px solid #f0d99c;margin-bottom:12px}
-.login{width:min(430px,100%);background:#fffdf9;padding:28px;border-radius:16px;border:1px solid var(--line);box-shadow:0 18px 45px rgba(60,42,20,.15)}
-.login-logo{display:block;width:100px;height:100px;object-fit:contain;margin:0 auto 10px;background:#fff;border-radius:20px;padding:7px;box-shadow:0 4px 16px rgba(60,42,20,.1)}
-.login h2{text-align:center;letter-spacing:-.3px;color:var(--red-dark)}
-.login input,.login select{width:100%;margin:5px 0}
-.login button{width:100%;margin:5px 0}
-#authGate{position:fixed;inset:0;background:linear-gradient(135deg,#f4ead7,#faf7f1);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
-#employeeGate{background:linear-gradient(135deg,#f4ead7,#faf7f1)!important}
-.logout{float:right;background:#fff;color:var(--red-dark);border:1px solid rgba(255,255,255,.6)}
+th{background:#f7f8fb;color:#475467;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+tr:hover td{background:#fbfcfe}
+.ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}.muted{color:var(--muted)}
+#reader{max-width:500px;margin:auto}.center{text-align:center}
+.small{font-size:13px}.pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#eef2ff;color:#344054;font-weight:600}
+.notice{padding:12px 14px;border-radius:10px;background:#fff8e8;border:1px solid #f4dfad;margin-bottom:12px}
+.login{width:min(430px,100%);background:#fff;padding:26px;border-radius:18px;border:1px solid var(--line);box-shadow:0 20px 50px rgba(23,32,51,.16)}
+.login h2{letter-spacing:-.3px}
+#authGate{position:fixed;inset:0;background:linear-gradient(135deg,#eef2f7,#f8fafc);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+#employeeGate{background:linear-gradient(135deg,#eef2f7,#f8fafc)!important}
+.logout{float:right;background:#fff;color:var(--ink);border:1px solid #ccd3df}
 .authmsg{margin-top:12px;min-height:20px}
 @media(max-width:700px){
-  header{padding:13px 12px}.header-inner{gap:10px}.brand-logo{width:48px;height:48px;border-radius:11px}.brand-title{font-size:18px}.brand-sub{font-size:11px}
-  nav{padding:8px;gap:5px}nav button{flex:1 1 auto;padding:8px 9px;font-size:13px}
-  main{padding:14px 9px 30px}.card{padding:15px;border-radius:12px}.stat{font-size:26px}
-  table{font-size:13px;display:block;overflow-x:auto;white-space:nowrap}td,th{padding:8px}.grid{grid-template-columns:1fr}
+  header{padding:18px 15px}
+  nav{padding:9px;gap:6px}
+  nav button{flex:1 1 auto}
+  main{padding:15px 10px 30px}
+  .card{padding:15px;border-radius:14px}
+  .stat{font-size:26px}
+  table{font-size:13px;display:block;overflow-x:auto;white-space:nowrap}
+  td,th{padding:8px}
+  .grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 <div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><img class="login-logo" src="logo.jpg" alt="Katrina’s logo"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device that is physically inside the branch. GPS is still required.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate"><div class="login"><img class="login-logo" src="logo.jpg" alt="Katrina’s logo"><h2>🔐 Supervisor Login</h2><p class="muted">Sign in to manage employees, branch QR codes, branch locations, and attendance.</p><input id="loginEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password"><button onclick="login()">Sign In</button><button onclick="signup()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button><button onclick="resendConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button><div id="authMsg" class="authmsg small"></div><p class="muted small">Uses Supabase Auth. If your account is not confirmed yet, use Resend Confirmation Email and then sign in again.</p></div></div>
-<header><div class="header-inner"><img class="brand-logo" src="logo.jpg" alt="Katrina’s logo"><div><h2 class="brand-title">Katrinas Digital Attendance</h2><div class="brand-sub">Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div></div><button class="logout" onclick="logout()">Log Out</button></div></header>
+<header>\n<button class="logout" onclick="logout()">Log Out</button><img src="logo.jpg" alt="Katrina’s logo" style="width:54px;height:54px;object-fit:contain;background:#fff;border-radius:12px;padding:4px;vertical-align:middle;margin-right:10px"><span style="vertical-align:middle"><h2 style="display:inline">📋 Katrinas Digital Attendance</h2><div>Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div></span>\n</header>
 <nav>
 <button onclick="page('dashboard')">Dashboard</button>
 <button onclick="page('employees')">Employees</button>
