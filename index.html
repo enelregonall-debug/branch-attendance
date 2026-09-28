@@ -508,7 +508,7 @@ async function loadBranches(){
   branches=await api("/branches?select=id,name&order=id.asc");
   if(!branches.length) throw new Error("No branches found in Supabase.");
 }
-function branchName(id){return branches.find(b=>String(b.id)===String(id))?.name||"Unknown";}
+function branchName(id){if(id===null||id===undefined||id==="")return "ANY BRANCH";return branches.find(b=>String(b.id)===String(id))?.name||"Unknown";}
 
 async function page(x){
   if(!session){renderAuth();return;}
