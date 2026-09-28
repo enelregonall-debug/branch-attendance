@@ -127,8 +127,17 @@ body.compact-tables table td{font-size:.9rem}
 <button onclick="page('dashboard')">Dashboard</button>
 <button onclick="page('employees')">Employees</button>
 <button onclick="page('branchqrs')">🏪 Branch QR</button>
-<button onclick="page('attendance')">Attendance</button><button onclick="page('summary')">📊 Monthly Summary</button><label style="display:flex;align-items:center;gap:6px;margin-left:auto"><span class="small">✨ Preset</span><select id="presetSelect" onchange="setPreset(this.value)" style="padding:8px 10px"><option value="katrina">Katrina Red</option><option value="corporate">Corporate</option><option value="elegant">Elegant</option><option value="warm">Warm</option><option value="fresh">Fresh</option><option value="dark">Dark Premium</option></select></label><label style="display:flex;align-items:center;gap:6px;margin-left:0"><span class="small">🎨 Theme</span><select id="themeSelect" onchange="setTheme(this.value)" style="padding:8px 10px"><option value="red">Red Classic</option><option value="navy">Navy & Gold</option><option value="green">Green Elegant</option><option value="notebook">Notebook Clean</option><option value="blackgold">Black & Gold</option><option value="coffee">Coffee & Cream</option><option value="purple">Royal Purple</option><option value="sky">Sky Blue</option><option value="rose">Soft Rose</option><option value="terra">Warm Terracotta</option></select></label><label style="display:flex;align-items:center;gap:6px;margin-left:0"><span class="small">🔤 Font</span><select id="fontSelect" onchange="setFont(this.value)" style="padding:8px 10px"><option value="antiqua">Book Antiqua</option><option value="poppins">Poppins</option><option value="georgia">Georgia</option><option value="garamond">Garamond</option><option value="trebuchet">Trebuchet MS</option><option value="verdana">Verdana</option></select></label><label style="display:flex;align-items:center;gap:6px;margin-left:0"><span class="small">📏 Rows</span><select id="densitySelect" onchange="setTableDensity(this.value)" style="padding:8px 10px"><option value="compact">Compact</option><option value="comfortable">Comfortable</option></select></label>
-</nav>
+<button onclick="page('attendance')">Attendance</button>
+<button onclick="page('summary')">📊 Monthly Summary</button>
+<button onclick="toggleCustomize()" id="customizeBtn">⚙️ Customize</button>
+<div id="customizePanel" style="display:none;position:absolute;right:16px;top:58px;z-index:1000;background:var(--card);color:var(--ink);padding:14px;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);min-width:230px">
+  <div style="font-weight:700;margin-bottom:10px">Appearance</div>
+  <label style="display:block;margin-bottom:9px"><span class="small">✨ Preset</span><select id="presetSelect" onchange="setPreset(this.value)" style="width:100%;padding:8px 10px"><option value="katrina">Katrina Red</option><option value="corporate">Corporate</option><option value="elegant">Elegant</option><option value="warm">Warm</option><option value="fresh">Fresh</option><option value="dark">Dark Premium</option></select></label>
+  <label style="display:block;margin-bottom:9px"><span class="small">🎨 Theme</span><select id="themeSelect" onchange="setTheme(this.value)" style="width:100%;padding:8px 10px"><option value="red">Red Classic</option><option value="navy">Navy & Gold</option><option value="green">Green Elegant</option><option value="notebook">Notebook Clean</option><option value="blackgold">Black & Gold</option><option value="coffee">Coffee & Cream</option><option value="purple">Royal Purple</option><option value="sky">Sky Blue</option><option value="rose">Soft Rose</option><option value="terra">Warm Terracotta</option></select></label>
+  <label style="display:block;margin-bottom:9px"><span class="small">🔤 Font</span><select id="fontSelect" onchange="setFont(this.value)" style="width:100%;padding:8px 10px"><option value="antiqua">Book Antiqua</option><option value="poppins">Poppins</option><option value="georgia">Georgia</option><option value="garamond">Garamond</option><option value="trebuchet">Trebuchet MS</option><option value="verdana">Verdana</option></select></label>
+  <label style="display:block"><span class="small">📏 Rows</span><select id="densitySelect" onchange="setTableDensity(this.value)" style="width:100%;padding:8px 10px"><option value="compact">Compact</option><option value="comfortable">Comfortable</option></select></label>
+</div>
+</nav></nav>
 <main id="app"><div class="card">Loading…</div></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -166,6 +175,14 @@ function setQueue(x){localStorage.setItem(QUEUE_KEY,JSON.stringify(x))}
 function getLocalAtt(){ try{return JSON.parse(localStorage.getItem(LOCAL_ATT)||'{}')}catch{return {}} }
 function setLocalAtt(x){localStorage.setItem(LOCAL_ATT,JSON.stringify(x))}
 async function sha256(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function toggleCustomize(){
+  const p=document.getElementById('customizePanel');
+  if(p) p.style.display=p.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  const p=document.getElementById('customizePanel'), b=document.getElementById('customizeBtn');
+  if(p && p.style.display==='block' && !p.contains(e.target) && e.target!==b) p.style.display='none';
+});
 function setPreset(preset){
   const allowed=['corporate','katrina','elegant','warm','fresh','dark'];
   if(!allowed.includes(preset)) preset='katrina';
