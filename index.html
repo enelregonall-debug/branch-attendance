@@ -128,25 +128,40 @@ function clearEmployeeSelectionUI(){
 function setCachedEmployees(x){localStorage.setItem(EMP_CACHE,JSON.stringify(x))}
 function populateEmployeeSelect(){
   const sel=document.getElementById('empSelect'); if(!sel)return;
-  const list=getCachedEmployees().filter(e=>e.active!==false && (!employeeBranch || e.branch_id==null || Number(e.branch_id)===Number(employeeBranch.id)));
   const bind=getDeviceBind();
+
+  // For a registered phone, identify the employee first.
+  // Do NOT filter the registered employee by the current branch here.
+  // NULL/empty branch_id means ANY BRANCH.
   if(bind){
+    const list=getCachedEmployees().filter(e=>e.active!==false);
     const match=list.find(e=>String(e.id)===String(bind.employee_id)||e.employee_code===bind.employee_code);
     if(match){
+      const assignedBranch=(match.branch_id===null||match.branch_id===undefined||match.branch_id==='')?null:Number(match.branch_id);
+      if(assignedBranch!==null && employeeBranch && assignedBranch!==Number(employeeBranch.id)){
+        sel.innerHTML='<option value="">Registered employee is not assigned to this branch.</option>';
+        sel.disabled=true;
+        document.getElementById('registerPhoneBtn').style.display='none';
+        document.getElementById('attendanceStartBtn').style.display='none';
+        document.getElementById('empMsg').innerHTML='<span class="bad">🚫 This phone is registered to an employee assigned to another branch.</span>';
+        return;
+      }
       sel.innerHTML='<option value="'+esc(match.employee_code)+'">'+esc(match.full_name)+' — '+esc(match.employee_code)+'</option>';
       sel.value=match.employee_code; sel.disabled=true;
       document.getElementById('registerPhoneBtn').style.display='none';
       document.getElementById('attendanceStartBtn').style.display='block';
       document.getElementById('empMsg').innerHTML='<span class="ok">📱 This phone is registered to '+esc(match.full_name)+'.</span>';
-    }else{
-      sel.innerHTML='<option value="">Registered employee is not assigned to this branch.</option>';
-      sel.disabled=true;
-      document.getElementById('registerPhoneBtn').style.display='none';
-      document.getElementById('attendanceStartBtn').style.display='none';
-      document.getElementById('empMsg').innerHTML='<span class="bad">🚫 This phone is registered to another employee or branch.</span>';
+      return;
     }
+    sel.innerHTML='<option value="">Registered employee not found.</option>';
+    sel.disabled=true;
+    document.getElementById('registerPhoneBtn').style.display='none';
+    document.getElementById('attendanceStartBtn').style.display='none';
+    document.getElementById('empMsg').innerHTML='<span class="bad">Registered employee could not be loaded. Refresh while online.</span>';
     return;
   }
+
+  const list=getCachedEmployees().filter(e=>e.active!==false && (!employeeBranch || e.branch_id==null || Number(e.branch_id)===Number(employeeBranch.id)));
   sel.disabled=false;
   sel.innerHTML='<option value="">Select your name</option>'+list.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
   document.getElementById('registerPhoneBtn').style.display='block';
