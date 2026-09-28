@@ -610,7 +610,7 @@ async function summary(){
   const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
   const end=monthVal+'-'+String(lastDay).padStart(2,'0');
   const [em,att]=await Promise.all([
-    api('/employees?select=id,employee_code,full_name,position,branch_id,active&order=full_name.asc'),
+    api('/employees?select=id,employee_code,full_name,position,branch_id,daily_rate,active&order=full_name.asc'),
     api('/attendance?attendance_date=gte.'+start+'&attendance_date=lte.'+end+'&select=employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.asc')
   ]);
   const branchFilter=document.getElementById('summaryBranch')?.value||'all';
@@ -627,9 +627,10 @@ async function summary(){
     const absent=Math.max(0,scheduledDates.length-present);
     let hours=0;
     records.forEach(a=>{if(a.time_in&&a.time_out){hours+=(new Date(a.time_out)-new Date(a.time_in))/3600000;}});
-    return {e,present,absent,hours};
+    const dailyRate=Number(e.daily_rate||0); const estimatedPay=present*dailyRate;
+    return {e,present,absent,hours,dailyRate,estimatedPay};
   });
-  const totalPresent=rows.reduce((n,r)=>n+r.present,0), totalAbsent=rows.reduce((n,r)=>n+r.absent,0);
+  const totalPresent=rows.reduce((n,r)=>n+r.present,0), totalAbsent=rows.reduce((n,r)=>n+r.absent,0), totalPay=rows.reduce((n,r)=>n+r.estimatedPay,0);
   app.innerHTML=`<div class="card"><h2>📊 Monthly Attendance Summary</h2>
     <div class="grid"><input id="summaryMonth" type="month" value="${monthVal}" onchange="loadSummaryMonth()">
       <select id="summaryBranch" onchange="summary()"><option value="all">All branches</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select>
