@@ -778,10 +778,11 @@ async function setBranchLocation(id){
     if(acc>150 && !confirm('GPS accuracy is about '+Math.round(acc)+' m. Save this location anyway?\\n\\nFor best accuracy, make sure Location/GPS is ON and stand in an open area.'))return;
     const radius=prompt('Allowed radius in meters (recommended 50–100):', String(b.radius_m||75));
     if(radius===null)return;
-    if(!/^\\d+(\\.\\d+)?$/.test(radius) || Number(radius)<10 || Number(radius)>1000)return alert('Radius must be between 10 and 1000 meters.');
-    const updated=await api('/branches?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({latitude:p.coords.latitude,longitude:p.coords.longitude,radius_m:Number(radius)})});
+    const radiusNum=Number(String(radius).trim());
+    if(!Number.isFinite(radiusNum) || radiusNum<10 || radiusNum>1000)return alert('Radius must be between 10 and 1000 meters.');
+    const updated=await api('/branches?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({latitude:p.coords.latitude,longitude:p.coords.longitude,radius_m:radiusNum})});
     if(!updated || !updated.length)throw new Error('The branch location was not saved. Please try again.');
-    alert('✅ Branch location saved.\\nGPS accuracy: about '+Math.round(acc)+' m\\nAllowed radius: '+radius+' m');
+    alert('✅ Branch location saved.\\nGPS accuracy: about '+Math.round(acc)+' m\\nAllowed radius: '+radiusNum+' m');
     await branchqrs();
   }catch(e){
     let msg=e.message||'Could not save location.';
