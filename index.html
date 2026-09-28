@@ -614,9 +614,9 @@ async function summary(){
   const employees=em.filter(e=>branchFilter==='all'||String(e.branch_id)===String(branchFilter));
   const byEmp={};
   att.forEach(a=>{(byEmp[a.employee_id]??=[]).push(a)});
-  // Fixed payroll schedule: 31 scheduled days every month.
-  // Calendar dates beyond the actual month are schedule-only days and cannot have attendance records.
-  const scheduledDates=Array.from({length:31},(_,i)=>monthVal+'-'+String(i+1).padStart(2,'0'));
+  // Payroll schedule follows the actual calendar days of the selected month.
+  // Sunday is included because the payroll rule counts every calendar day.
+  const scheduledDates=Array.from({length:lastDay},(_,i)=>monthVal+'-'+String(i+1).padStart(2,'0'));
   const rows=employees.map(e=>{
     const records=byEmp[e.id]||[];
     const presentDates=new Set(records.filter(a=>a.time_in).map(a=>a.attendance_date));
@@ -631,7 +631,7 @@ async function summary(){
     <div class="grid"><input id="summaryMonth" type="month" value="${monthVal}" onchange="loadSummaryMonth()">
       <select id="summaryBranch" onchange="summary()"><option value="all">All branches</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select>
     </div>
-    <p class="muted small">Absent is calculated using the fixed payroll schedule of <b>31 days per month</b>. A day counts as present when there is a valid TIME IN.</p>
+    <p class="muted small">Absent is calculated using the actual calendar days of the selected month. Sunday is included. A day counts as present when there is a valid TIME IN.</p>
     <p><button onclick="summaryCSV()">Export Monthly CSV</button></p>
     <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present entries<div class="stat">${totalPresent}</div></div><div class="card">Absent entries<div class="stat">${totalAbsent}</div></div></div>
     <table><tr><th>Employee</th><th>Branch</th><th>Duty / Present</th><th>Absent</th><th>Total Hours</th></tr>
