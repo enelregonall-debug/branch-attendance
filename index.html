@@ -637,9 +637,9 @@ async function summary(){
     </div>
     <p class="muted small">Absent is calculated using the actual calendar days of the selected month. Sunday is included. A day counts as present when there is a valid TIME IN.</p>
     <p><button onclick="summaryCSV()">Export Monthly CSV</button></p>
-    <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present entries<div class="stat">${totalPresent}</div></div><div class="card">Absent entries<div class="stat">${totalAbsent}</div></div></div>
-    <table><tr><th>Employee</th><th>Branch</th><th>Duty / Present</th><th>Absent</th><th>Total Hours</th></tr>
-    ${rows.map(r=>`<tr><td>${esc(r.e.full_name)}<br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td><td class="ok">${r.present}</td><td class="bad">${r.absent}</td><td>${r.hours.toFixed(2)}</td></tr>`).join('')}</table>
+    <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present entries<div class="stat">${totalPresent}</div></div><div class="card">Absent entries<div class="stat">${totalAbsent}</div></div><div class="card">Estimated payroll<div class="stat">₱${totalPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
+    <table><tr><th>Employee</th><th>Branch</th><th>Daily Rate</th><th>Duty / Present</th><th>Absent</th><th>Total Hours</th><th>Estimated Pay</th></tr>
+    ${rows.map(r=>`<tr><td>${esc(r.e.full_name)}<br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td><td>₱${r.dailyRate.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td class="ok">${r.present}</td><td class="bad">${r.absent}</td><td>${r.hours.toFixed(2)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</table>
   </div>`;
 }
 function loadSummaryMonth(){
@@ -651,7 +651,7 @@ async function summaryCSV(){
   const qs='?month='+encodeURIComponent(month)+'&branch='+encodeURIComponent(branch);
   // Rebuild the same calculation in a compact way by reading the rendered table.
   const table=app.querySelector('table'); if(!table)return;
-  const rows=[['Employee Code','Employee','Branch','Present / Duty Days','Absent Days','Total Hours']];
+  const rows=[['Employee Code','Employee','Branch','Daily Rate','Present / Duty Days','Absent Days','Total Hours','Estimated Pay']];
   [...table.querySelectorAll('tr')].slice(1).forEach(tr=>rows.push([...tr.children].map(td=>td.innerText.replace(/\n/g,' ').trim())));
   const blob=new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='monthly-attendance-'+month+'.csv';a.click();URL.revokeObjectURL(a.href);
