@@ -140,8 +140,7 @@ body.compact-tables table td{font-size:.9rem}
 </nav></nav>
 <main id="app"><div class="card">Loading…</div></main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
 <script>
 const SUPABASE_URL = "https://ktrrjldiniwqryuojjnq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
@@ -179,7 +178,10 @@ async function syncImportedDailyRates(){
 }
 
 const API = SUPABASE_URL + "/rest/v1";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let sb = null;
+function loadScriptOnce(src){return new Promise((resolve,reject)=>{const existing=[...document.scripts].find(s=>s.src===src);if(existing){if(window.supabase&&src.includes("supabase"))return resolve();return existing.addEventListener("load",resolve,{once:true}),existing.addEventListener("error",reject,{once:true});}const s=document.createElement("script");s.src=src;s.async=true;s.onload=()=>resolve();s.onerror=()=>reject(new Error("Could not load required script."));document.head.appendChild(s);});}
+async function ensureSupabase(){if(!window.supabase) await loadScriptOnce("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"); if(!sb) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); return sb;}
+async function ensureQRCode(){if(!window.QRCode) await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"); return window.QRCode;}
 let session = null;
 const BRANCHES = ["Katrina's 1","Katrina's Bites","Katrinas 3","Katrina's Grill","Katrina's Kambingan","D' Sisters","Jeoff Consumer Goods Trading","Jeoff Laundry","K- Corner","Comissary"];
 let cam=null, locked=false, sameQrLocked=false, noQrTimer=null, lastScanToken="", lastScanAt=0, branches=[];
@@ -594,6 +596,7 @@ async function syncQueue(){
 window.addEventListener('online',async()=>{await cacheBranchList();await syncQueue();if(employeeSession)renderEmployeeApp()});
 async function initAuth(){
   if(isEmployeeMode()){await initEmployeeMode();return;}
+  await ensureSupabase();
   await cacheBranchList();
   const {data}=await sb.auth.getSession();
   session=data.session;
@@ -750,6 +753,7 @@ async function saveEmployee(id){
 }
 
 async function branchqrs(){
+  await ensureQRCode();
   const rows=await api('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc');
   app.innerHTML='<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">'+rows.map(b=>'<div class="card center"><h3>'+esc(b.name)+'</h3><div id="bqr'+b.id+'" style="display:flex;justify-content:center"></div><p class="small "'+(b.latitude!=null?'ok':'bad')+'>'+(b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set')+'</p><button onclick="printBranchQR('+b.id+')">Print QR</button> <button onclick="setBranchLocation('+b.id+')" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button></div>').join('')+'</div></div>';
   rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
