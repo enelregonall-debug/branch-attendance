@@ -1,4 +1,4 @@
-const CACHE_NAME='katrinas-attendance-offline-v2';
+const CACHE_NAME='katrinas-attendance-offline-v3';
 const APP_SHELL=[
   './',
   './index.html',
