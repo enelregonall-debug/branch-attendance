@@ -1,0 +1,9 @@
+{
+  "name":"Katrinas Digital Attendance",
+  "short_name":"Katrinas Attendance",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f5f7fb",
+  "theme_color":"#8d1023",
+  "description":"Katrinas Digital Attendance"
+}
