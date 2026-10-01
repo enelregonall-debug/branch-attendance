@@ -417,7 +417,6 @@ async function supervisorAssistRecord(type){
   if(!e){m.innerHTML='<span class="bad">Employee not found.</span>';return;}
   if(Number(e.branch_id)!==Number(employeeBranch.id)){m.innerHTML='<span class="bad">Employee is not assigned to this branch.</span>';return;}
   try{
-    const pos=await verifyInsideBranch();
     const d=today();
     const existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(e.id)+'&attendance_date=eq.'+encodeURIComponent(d)+'&select=id,employee_id,branch_id,attendance_date,time_in,time_out');
     const now=new Date().toISOString();
@@ -425,14 +424,14 @@ async function supervisorAssistRecord(type){
       if(existing[0]?.time_in){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' already has TIME IN today.</span>';return;}
       const r=await api('/attendance',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({employee_id:e.id,branch_id:employeeBranch.id,attendance_date:d,time_in:now})});
       if(!r.ok) throw new Error('Could not save TIME IN ('+r.status+').');
-      m.innerHTML='<span class="ok">✅ TIME IN recorded for '+esc(e.full_name)+'. GPS: '+Math.round(pos.dist)+' m from branch.</span>';
+      m.innerHTML='<span class="ok">✅ TIME IN recorded for '+esc(e.full_name)+'.</span>';
     }else{
       if(new Date().getHours()<12){m.innerHTML='<span class="bad">TIME OUT is locked until 12:00 PM.</span>';return;}
       if(!existing[0]?.time_in){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' has no TIME IN today.</span>';return;}
       if(existing[0].time_out){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' already has TIME OUT today.</span>';return;}
       const r=await api('/attendance?id=eq.'+encodeURIComponent(existing[0].id),{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({time_out:now})});
       if(!r.ok) throw new Error('Could not save TIME OUT ('+r.status+').');
-      m.innerHTML='<span class="ok">✅ TIME OUT recorded for '+esc(e.full_name)+'. GPS: '+Math.round(pos.dist)+' m from branch.</span>';
+      m.innerHTML='<span class="ok">✅ TIME OUT recorded for '+esc(e.full_name)+'.</span>';
     }
   }catch(err){m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';}
 }
