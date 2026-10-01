@@ -396,8 +396,13 @@ async function supervisorAssistLogin(){
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
     session=data.session;
-    // Load only the employees needed for this branch, once, after authentication.
-    const rows=await api('/employees?or=(branch_id.eq.'+Number(employeeBranch.id)+',branch_id.is.null)&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+    // Use the employee cache already loaded by the Branch QR page, so the Assist panel opens immediately.
+    // The actual attendance action still re-checks the employee from Supabase before recording.
+    let rows=getCachedEmployees().filter(e=>e.active!==false && (Number(e.branch_id)===Number(employeeBranch.id) || e.branch_id===null || e.branch_id===undefined || e.branch_id===''));
+    if(!rows.length){
+      rows=await api('/employees?or=(branch_id.eq.'+Number(employeeBranch.id)+',branch_id.is.null)&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+      setCachedEmployees(rows.map(e=>({id:e.id,employee_code:e.employee_code,full_name:e.full_name,position:e.position,branch_id:e.branch_id,active:true})));
+    }
     if(!rows.length) throw new Error('No active employees are assigned to this branch.');
     document.getElementById('assistEmp').innerHTML=rows.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
     document.getElementById('assistPanel').style.display='block';
