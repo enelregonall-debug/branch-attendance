@@ -879,20 +879,41 @@ async function summaryCSV(){
 }
 
 async function attendance(){
-  const r=await api("/attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc,time_in.desc&limit=500");
-  const em=await api("/employees?select=id,employee_code,full_name");
+  const now=new Date();
+  const defaultMonth=now.toISOString().slice(0,7);
+  const selected=new URLSearchParams(location.search).get('attendanceMonth');
+  const monthVal=/^\d{4}-\d{2}$/.test(selected||'')?selected:defaultMonth;
+  const [year,month]=monthVal.split('-').map(Number);
+  const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
+  const start=monthVal+'-01';
+  const end=monthVal+'-'+String(lastDay).padStart(2,'0');
+  const r=await api('/attendance?attendance_date=gte.'+start+'&attendance_date=lte.'+end+'&select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc,time_in.desc&limit=5000');
+  const em=await api('/employees?select=id,employee_code,full_name');
   const emp=id=>em.find(e=>e.id===id)||null;
-  app.innerHTML=`<div class="card"><h2>Attendance Log</h2><button onclick="csv()">Export CSV</button>
-  <table><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th></tr>
-  ${r.map(x=>{const e=emp(x.employee_id);return `<tr><td>${esc(x.attendance_date)}</td><td>${esc(e?.employee_code||"Unknown")}</td><td>${esc(e?.full_name||"Unknown")}</td><td>${esc(branchName(x.branch_id))}</td><td>${x.time_in?new Date(x.time_in).toLocaleTimeString():"—"}</td><td>${x.time_out?new Date(x.time_out).toLocaleTimeString():"—"}</td></tr>`}).join("")}
-  </table></div>`;
+  app.innerHTML='<div class="card"><h2>Attendance Log</h2>'+
+  '<div class="grid"><label class="small"><b>Month</b><input id="attendanceMonth" type="month" value="'+monthVal+'" onchange="loadAttendanceMonth()" style="width:100%;margin-top:5px"></label>'+
+  '<div><b>Selected month</b><p class="pill">'+monthVal+'</p></div></div>'+
+  '<p class="muted small">Attendance records are permanently saved in the central database. This view is organized by month; changing the month only changes which saved records are displayed.</p>'+
+  '<button onclick="csv()">Export '+monthVal+' CSV</button>'+
+  '<table><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th></tr>'+
+  r.map(x=>{const e=emp(x.employee_id);return '<tr><td>'+esc(x.attendance_date)+'</td><td>'+esc(e?.employee_code||'Unknown')+'</td><td>'+esc(e?.full_name||'Unknown')+'</td><td>'+esc(branchName(x.branch_id))+'</td><td>'+(x.time_in?new Date(x.time_in).toLocaleTimeString():'—')+'</td><td>'+(x.time_out?new Date(x.time_out).toLocaleTimeString():'—')+'</td></tr>'}).join('')+
+  '</table></div>';
+}
+function loadAttendanceMonth(){
+  const v=document.getElementById('attendanceMonth')?.value;
+  if(v) history.replaceState(null,'','?attendanceMonth='+encodeURIComponent(v));
+  attendance();
 }
 async function csv(){
-  const r=await api("/attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc&limit=5000");
-  const em=await api("/employees?select=id,employee_code,full_name");
+  const month=document.getElementById('attendanceMonth')?.value||new Date().toISOString().slice(0,7);
+  const [year,mon]=month.split('-').map(Number);
+  const lastDay=new Date(Date.UTC(year,mon,0)).getUTCDate();
+  const start=month+'-01', end=month+'-'+String(lastDay).padStart(2,'0');
+  const r=await api('/attendance?attendance_date=gte.'+start+'&attendance_date=lte.'+end+'&select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc&limit=5000');
+  const em=await api('/employees?select=id,employee_code,full_name');
   const emp=id=>em.find(e=>e.id===id)||null;
-  const rows=[["DATE","EMP ID","NAME","BRANCH","TIME IN","TIME OUT"],...r.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||"Unknown",e?.full_name||"Unknown",branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():"",x.time_out?new Date(x.time_out).toLocaleString():""]})];
-  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(",")).join("\\n")],{type:"text/csv"}));a.download="attendance-online.csv";a.click();
+  const rows=[['DATE','EMP ID','NAME','BRANCH','TIME IN','TIME OUT'],...r.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||'Unknown',e?.full_name||'Unknown',branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():'',x.time_out?new Date(x.time_out).toLocaleString():'']})];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\n')],{type:'text/csv'}));a.download='attendance-'+month+'.csv';a.click();
 }
 try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); initAuth();
 </script>
