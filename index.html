@@ -669,8 +669,12 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const today=()=>new Date().toISOString().slice(0,10);
 
 async function loadBranches(){
-  branches=await api("/branches?select=id,name&order=id.asc");
-  if(!branches.length) throw new Error("No branches found in Supabase.");
+  // Branch names/locations are readable with the public key so the Back Office
+  // does not get blocked by an authenticated SELECT/RLS policy on branches.
+  const r=await publicFetch("/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc");
+  if(!r.ok) throw new Error("Could not load branches from Supabase (HTTP "+r.status+").");
+  branches=await r.json();
+  if(!Array.isArray(branches)||!branches.length) throw new Error("No branches found in Supabase.");
 }
 function branchName(id){if(id===null||id===undefined||id==="")return "ANY BRANCH";return branches.find(b=>String(b.id)===String(id))?.name||"Unknown";}
 
