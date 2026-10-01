@@ -665,7 +665,7 @@ async function api(path, opts={}){
   return body;
 }
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-const today=()=>new Date().toISOString().slice(0,10);
+function localDateString(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;} function localMonthString(d=new Date()){return localDateString(d).slice(0,7);} const today=()=>localDateString();
 
 async function loadBranches(){
   // Branch names/locations are readable with the public key so the Back Office
@@ -813,8 +813,8 @@ function printBranchQR(id){const card=document.getElementById('bqr'+id)?.parentE
 
 async function summary(){
   const now=new Date();
-  const ym=new URLSearchParams(location.search).get('month') || now.toISOString().slice(0,7);
-  const monthVal=/^\d{4}-\d{2}$/.test(ym)?ym:now.toISOString().slice(0,7);
+  const ym=new URLSearchParams(location.search).get('month') || localMonthString(now);
+  const monthVal=/^\d{4}-\d{2}$/.test(ym)?ym:localMonthString(now);
   const [year,month]=monthVal.split('-').map(Number);
   const start=monthVal+'-01';
   const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
@@ -866,7 +866,7 @@ function loadSummaryMonth(){
   const v=document.getElementById('summaryMonth')?.value;if(v)history.replaceState(null,'','?month='+encodeURIComponent(v));summary();
 }
 async function summaryCSV(){
-  const month=document.getElementById('summaryMonth')?.value||new Date().toISOString().slice(0,7);
+  const month=document.getElementById('summaryMonth')?.value||localMonthString();
   const branch=document.getElementById('summaryBranch')?.value||'all';
   const qs='?month='+encodeURIComponent(month)+'&branch='+encodeURIComponent(branch);
   // Rebuild the same calculation in a compact way by reading the rendered table.
@@ -879,7 +879,7 @@ async function summaryCSV(){
 
 async function attendance(){
   const now=new Date();
-  const defaultMonth=now.toISOString().slice(0,7);
+  const defaultMonth=localMonthString(now);
   const params=new URLSearchParams(location.search);
   const selected=params.get('attendanceMonth');
   const monthVal=/^\\d{4}-\\d{2}$/.test(selected||'')?selected:defaultMonth;
@@ -909,14 +909,14 @@ function loadAttendanceMonth(){
   attendance();
 }
 function loadAttendanceBranch(){
-  const m=document.getElementById('attendanceMonth')?.value||new Date().toISOString().slice(0,7);
+  const m=document.getElementById('attendanceMonth')?.value||localMonthString();
   const b=document.getElementById('attendanceBranch')?.value||'all';
   const qs=new URLSearchParams(); qs.set('attendanceMonth',m); if(b!=='all')qs.set('attendanceBranch',b);
   history.replaceState(null,'','?'+qs.toString());
   attendance();
 }
 async function csv(){
-  const month=document.getElementById('attendanceMonth')?.value||new Date().toISOString().slice(0,7);
+  const month=document.getElementById('attendanceMonth')?.value||localMonthString();
   const branch=document.getElementById('attendanceBranch')?.value||'all';
   const [year,mon]=month.split('-').map(Number);
   const lastDay=new Date(Date.UTC(year,mon,0)).getUTCDate();
