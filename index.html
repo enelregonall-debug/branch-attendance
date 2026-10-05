@@ -27,7 +27,6 @@
     const absentEquivalent=Math.max(0,elapsedDays-presentEquivalent);
     const estimatedPay=presentEquivalent*dailyRate;
     const dailyStatus={};
-    const todayDate=localDateString();
     scheduledDates.forEach(d=>{
       if(d>todayDate){ dailyStatus[d]='future'; return; }
       const rec=records.find(a=>a.attendance_date===d && a.time_in);
