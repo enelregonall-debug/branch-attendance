@@ -861,16 +861,16 @@ async function summary(){
     return {e,present,absent,hours,dailyRate,halfdays,fullDays,estimatedPay};
   });
   rows.forEach(r=>{r.complete=(byEmp[r.e.id]||[]).filter(a=>a.time_in&&a.time_out).length; r.incomplete=(byEmp[r.e.id]||[]).filter(a=>(!!a.time_in)!==(!!a.time_out)).length;});
-  const totalPresent=rows.reduce((n,r)=>n+r.present,0), totalAbsent=rows.reduce((n,r)=>n+r.absent,0), totalHalfdays=rows.reduce((n,r)=>n+r.halfdays,0), totalIncomplete=rows.reduce((n,r)=>n+r.incomplete,0), totalComplete=rows.reduce((n,r)=>n+r.complete,0), totalPay=rows.reduce((n,r)=>n+r.estimatedPay,0);
+  const totalPresent=rows.reduce((n,r)=>n+r.present,0), totalAbsent=rows.reduce((n,r)=>n+r.absent,0), totalHalfdays=rows.reduce((n,r)=>n+r.halfdays,0), totalComplete=rows.reduce((n,r)=>n+r.complete,0), totalPay=rows.reduce((n,r)=>n+r.estimatedPay,0);
   app.innerHTML=`<div class="card"><h2>📊 Monthly Attendance Summary</h2>
     <div class="grid"><input id="summaryMonth" type="month" value="${monthVal}" onchange="loadSummaryMonth()">
       <select id="summaryBranch" onchange="summary()"><option value="all">All branches</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select>
     </div>
     <p class="muted small">Absent uses the actual calendar days of the selected month. Sunday is included. TIME IN at 12:00 PM or later, or TIME OUT during the 1:00 PM hour, is counted as HALFDAY and paid at 50% of the daily rate.</p>
     <p><button onclick="summaryCSV()">Export Monthly CSV</button></p>
-    <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present<div class="stat">${totalPresent}</div></div><div class="card">Complete<div class="stat">${totalComplete}</div></div><div class="card">Incomplete<div class="stat">${totalIncomplete}</div></div><div class="card">Absent<div class="stat">${totalAbsent}</div></div><div class="card">Estimated payroll<div class="stat">₱${totalPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
-    <table><tr><th>Employee</th><th>Branch</th><th>Daily Rate</th><th>Present</th><th>Complete</th><th>Incomplete</th><th>Halfday</th><th>Absent</th><th>Total Hours</th><th>Estimated Pay</th></tr>
-    ${rows.map(r=>`<tr><td>${esc(r.e.full_name)}<br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td><td>₱${r.dailyRate.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td class="ok">${r.present}</td><td>${r.complete}</td><td>${r.incomplete}</td><td>${r.halfdays}</td><td class="bad">${r.absent}</td><td>${r.hours.toFixed(2)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</table>
+    <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present<div class="stat">${totalPresent}</div></div><div class="card">Complete<div class="stat">${totalComplete}</div></div><div class="card">Absent<div class="stat">${totalAbsent}</div></div><div class="card">Estimated payroll<div class="stat">₱${totalPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
+    <table><tr><th>Employee</th><th>Branch</th><th>Daily Rate</th><th>Present</th><th>Complete</th><th>Halfday</th><th>Absent</th><th>Total Hours</th><th>Estimated Pay</th></tr>
+    ${rows.map(r=>`<tr><td>${esc(r.e.full_name)}<br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td><td>₱${r.dailyRate.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td class="ok">${r.present}</td><td>${r.complete}</td><td>${r.halfdays}</td><td class="bad">${r.absent}</td><td>${r.hours.toFixed(2)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</table>
   </div>`;
 }
 function loadSummaryMonth(){
@@ -882,7 +882,7 @@ async function summaryCSV(){
   const qs='?month='+encodeURIComponent(month)+'&branch='+encodeURIComponent(branch);
   // Rebuild the same calculation in a compact way by reading the rendered table.
   const table=app.querySelector('table'); if(!table)return;
-  const rows=[['Employee','Branch','Daily Rate','Present','Complete','Incomplete','Halfday','Absent','Total Hours','Estimated Pay']];
+  const rows=[['Employee','Branch','Daily Rate','Present','Complete','Halfday','Absent','Total Hours','Estimated Pay']];
   [...table.querySelectorAll('tr')].slice(1).forEach(tr=>rows.push([...tr.children].map(td=>td.innerText.replace(/\n/g,' ').trim())));
   const blob=new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='monthly-attendance-'+month+'.csv';a.click();URL.revokeObjectURL(a.href);
