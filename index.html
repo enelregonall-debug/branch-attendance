@@ -858,10 +858,13 @@ async function summary(){
     halfdays=Math.min(halfdays,present);
     const fullDays=present-halfdays;
     const presentEquivalent=fullDays+(halfdays*0.5);
-    const absentEquivalent=Math.max(0,scheduledDates.length-presentEquivalent);
+    const elapsedDates=scheduledDates.filter(d=>d<=localDateString()).length;
+    const absentEquivalent=Math.max(0,elapsedDates-presentEquivalent);
     const estimatedPay=presentEquivalent*dailyRate;
     const dailyStatus={};
+    const todayDate=localDateString();
     scheduledDates.forEach(d=>{
+      if(d>todayDate){ dailyStatus[d]='future'; return; }
       const rec=records.find(a=>a.attendance_date===d && a.time_in);
       if(!rec) dailyStatus[d]='absent';
       else{
@@ -877,11 +880,11 @@ async function summary(){
     <div class="grid"><input id="summaryMonth" type="month" value="${monthVal}" onchange="loadSummaryMonth()">
       <select id="summaryBranch" onchange="summary()"><option value="all">All branches</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select>
     </div>
-    <p class="muted small">Whole-month view: ✓ = Full Day, ½ = Halfday, ✗ = Absent. Present uses day-equivalent counting: Full Day = 1, Halfday = 0.5.</p>
+    <p class="muted small">Whole-month view: ✓ = Full Day, ½ = Halfday, ✗ = Absent, — = Future date. Future dates are not counted as absent. Present uses day-equivalent counting: Full Day = 1, Halfday = 0.5.</p>
     <p><button onclick="summaryCSV()">Export Monthly CSV</button></p>
     <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present<div class="stat">${fmtDays(totalPresent)}</div></div><div class="card">Absent<div class="stat">${fmtDays(totalAbsent)}</div></div><div class="card">Estimated payroll<div class="stat">₱${totalPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
     <div style="overflow-x:auto"><table><tr><th style="position:sticky;left:0;background:#f7f8fb">Employee</th><th>Branch</th>${scheduledDates.map(d=>`<th>${Number(d.slice(8))}</th>`).join('')}<th>Present</th><th>Absent</th><th>Total Hours</th><th>Estimated Pay</th></tr>
-    ${rows.map(r=>`<tr><td style="position:sticky;left:0;background:#fff"><b>${esc(r.e.full_name)}</b><br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td>${scheduledDates.map(d=>`<td class="${r.dailyStatus[d]==='present'?'ok':r.dailyStatus[d]==='half'?'':'bad'}" style="text-align:center;font-weight:700">${r.dailyStatus[d]==='present'?'✓':r.dailyStatus[d]==='half'?'½':'✗'}</td>`).join('')}<td class="ok">${fmtDays(r.present)}</td><td class="bad">${fmtDays(r.absent)}</td><td>${r.hours.toFixed(2)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</table></div>
+    ${rows.map(r=>`<tr><td style="position:sticky;left:0;background:#fff"><b>${esc(r.e.full_name)}</b><br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td>${scheduledDates.map(d=>`<td class="${r.dailyStatus[d]==='present'?'ok':r.dailyStatus[d]==='half'?'':'bad'}" style="text-align:center;font-weight:700">${r.dailyStatus[d]==='present'?'✓':r.dailyStatus[d]==='half'?'½':r.dailyStatus[d]==='future'?'—':'✗'}</td>`).join('')}<td class="ok">${fmtDays(r.present)}</td><td class="bad">${fmtDays(r.absent)}</td><td>${r.hours.toFixed(2)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</table></div>
   </div>`;
 }
 function fmtDays(n){return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(1);}
