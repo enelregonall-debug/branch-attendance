@@ -925,20 +925,19 @@ function fmtDays(n){return Number.isInteger(Number(n))?String(Number(n)):Number(
   if(!table||!bar||!inner)return;
   const ths=[...table.querySelectorAll('thead th')];
   if(ths.length<7)return;
-  const dateCells=ths.slice(3,-4);
   inner.innerHTML='';
-  const spacer=document.createElement('div');
-  spacer.style.cssText='flex:0 0 '+(ths[0].getBoundingClientRect().width+ths[1].getBoundingClientRect().width+ths[2].getBoundingClientRect().width)+'px';
-  inner.appendChild(spacer);
-  dateCells.forEach(th=>{
+  ths.forEach(th=>{
     const x=document.createElement('div');
+    const w=th.getBoundingClientRect().width;
     x.textContent=th.textContent.trim();
-    x.style.cssText='box-sizing:border-box;padding:11px 10px;border-right:1px solid #e5e7eb;text-align:center;font-size:12px;font-weight:800;color:#475467;flex:0 0 '+th.getBoundingClientRect().width+'px';
+    x.style.cssText='box-sizing:border-box;padding:11px 10px;border-right:1px solid #e5e7eb;text-align:center;font-size:12px;font-weight:800;color:#475467;white-space:normal;line-height:1.1;flex:0 0 '+w+'px;background:#f7f8fb;border-bottom:2px solid #d0d5dd';
     inner.appendChild(x);
   });
   const update=()=>{
     const r=table.getBoundingClientRect();
-    bar.style.display=(r.top<0&&r.bottom>0)?'block':'none';
+    const headerH=ths[0].getBoundingClientRect().height;
+    bar.style.height=headerH+'px';
+    bar.style.display=(r.top<0&&r.bottom>headerH)?'block':'none';
     inner.style.transform='translateX('+r.left+'px)';
   };
   window.removeEventListener('scroll',update);
