@@ -857,22 +857,34 @@ async function summary(){
     });
     halfdays=Math.min(halfdays,present);
     const fullDays=present-halfdays;
-    const estimatedPay=(fullDays*dailyRate)+(halfdays*dailyRate*0.5);
-    return {e,present,absent,hours,dailyRate,halfdays,fullDays,estimatedPay};
+    const presentEquivalent=fullDays+(halfdays*0.5);
+    const absentEquivalent=Math.max(0,scheduledDates.length-presentEquivalent);
+    const estimatedPay=presentEquivalent*dailyRate;
+    const dailyStatus={};
+    scheduledDates.forEach(d=>{
+      const rec=records.find(a=>a.attendance_date===d && a.time_in);
+      if(!rec) dailyStatus[d]='absent';
+      else{
+        const inHour=new Date(rec.time_in).getHours();
+        const outHour=rec.time_out ? new Date(rec.time_out).getHours() : null;
+        dailyStatus[d]=(inHour>=12 || outHour===13)?'half':'present';
+      }
+    });
+    return {e,present:presentEquivalent,absent:absentEquivalent,hours,dailyRate,estimatedPay,dailyStatus};
   });
-  rows.forEach(r=>{r.complete=(byEmp[r.e.id]||[]).filter(a=>a.time_in&&a.time_out).length; r.incomplete=(byEmp[r.e.id]||[]).filter(a=>(!!a.time_in)!==(!!a.time_out)).length;});
-  const totalPresent=rows.reduce((n,r)=>n+r.present,0), totalAbsent=rows.reduce((n,r)=>n+r.absent,0), totalHalfdays=rows.reduce((n,r)=>n+r.halfdays,0), totalPay=rows.reduce((n,r)=>n+r.estimatedPay,0);
+  const totalPresent=rows.reduce((n,r)=>n+r.present,0), totalAbsent=rows.reduce((n,r)=>n+r.absent,0), totalPay=rows.reduce((n,r)=>n+r.estimatedPay,0);
   app.innerHTML=`<div class="card"><h2>📊 Monthly Attendance Summary</h2>
     <div class="grid"><input id="summaryMonth" type="month" value="${monthVal}" onchange="loadSummaryMonth()">
       <select id="summaryBranch" onchange="summary()"><option value="all">All branches</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select>
     </div>
-    <p class="muted small">Absent uses the actual calendar days of the selected month. Sunday is included. TIME IN at 12:00 PM or later, or TIME OUT during the 1:00 PM hour, is counted as HALFDAY and paid at 50% of the daily rate.</p>
+    <p class="muted small">Whole-month view: ✓ = Full Day, ½ = Halfday, ✗ = Absent. Present uses day-equivalent counting: Full Day = 1, Halfday = 0.5.</p>
     <p><button onclick="summaryCSV()">Export Monthly CSV</button></p>
-    <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present<div class="stat">${totalPresent}</div></div><div class="card">Absent<div class="stat">${totalAbsent}</div></div><div class="card">Estimated payroll<div class="stat">₱${totalPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
-    <table><tr><th>Employee</th><th>Branch</th><th>Daily Rate</th><th>Present</th><th>Halfday</th><th>Absent</th><th>Total Hours</th><th>Estimated Pay</th></tr>
-    ${rows.map(r=>`<tr><td>${esc(r.e.full_name)}<br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td><td>₱${r.dailyRate.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td class="ok">${r.present}</td><td>${r.halfdays}</td><td class="bad">${r.absent}</td><td>${r.hours.toFixed(2)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</table>
+    <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present<div class="stat">${fmtDays(totalPresent)}</div></div><div class="card">Absent<div class="stat">${fmtDays(totalAbsent)}</div></div><div class="card">Estimated payroll<div class="stat">₱${totalPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
+    <div style="overflow-x:auto"><table><tr><th style="position:sticky;left:0;background:#f7f8fb">Employee</th><th>Branch</th>${scheduledDates.map(d=>`<th>${Number(d.slice(8))}</th>`).join('')}<th>Present</th><th>Absent</th><th>Total Hours</th><th>Estimated Pay</th></tr>
+    ${rows.map(r=>`<tr><td style="position:sticky;left:0;background:#fff"><b>${esc(r.e.full_name)}</b><br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td>${scheduledDates.map(d=>`<td class="${r.dailyStatus[d]==='present'?'ok':r.dailyStatus[d]==='half'?'':'bad'}" style="text-align:center;font-weight:700">${r.dailyStatus[d]==='present'?'✓':r.dailyStatus[d]==='half'?'½':'✗'}</td>`).join('')}<td class="ok">${fmtDays(r.present)}</td><td class="bad">${fmtDays(r.absent)}</td><td>${r.hours.toFixed(2)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</table></div>
   </div>`;
 }
+function fmtDays(n){return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(1);}
 function loadSummaryMonth(){
   const v=document.getElementById('summaryMonth')?.value;if(v)history.replaceState(null,'','?month='+encodeURIComponent(v));summary();
 }
@@ -882,8 +894,7 @@ async function summaryCSV(){
   const qs='?month='+encodeURIComponent(month)+'&branch='+encodeURIComponent(branch);
   // Rebuild the same calculation in a compact way by reading the rendered table.
   const table=app.querySelector('table'); if(!table)return;
-  const rows=[['Employee','Branch','Daily Rate','Present','Halfday','Absent','Total Hours','Estimated Pay']];
-  [...table.querySelectorAll('tr')].slice(1).forEach(tr=>rows.push([...tr.children].map(td=>td.innerText.replace(/\n/g,' ').trim())));
+  const rows=[...table.querySelectorAll('tr')].map(tr=>[...tr.children].map(td=>td.innerText.replace(/\n/g,' ').trim()));
   const blob=new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='monthly-attendance-'+month+'.csv';a.click();URL.revokeObjectURL(a.href);
 }
