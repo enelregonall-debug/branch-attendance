@@ -883,11 +883,35 @@ async function summary(){
     <p class="muted small">Whole-month view: ✓ = Full Day, ½ = Halfday, ✗ = Absent, — = Future date. Future dates are not counted as absent. Present uses day-equivalent counting: Full Day = 1, Halfday = 0.5.</p>
     <p><button onclick="summaryCSV()">Export Monthly CSV</button></p>
     <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present<div class="stat">${fmtDays(totalPresent)}</div></div><div class="card">Absent<div class="stat">${fmtDays(totalAbsent)}</div></div><div class="card">Estimated payroll<div class="stat">₱${totalPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
-    <div style="overflow-x:auto;overflow-y:visible"><table style="display:table;border-collapse:separate;border-spacing:0"><thead><tr><th >Employee</th><th>Branch</th>${scheduledDates.map(d=>`<th style="position:sticky;top:0;z-index:20;background:#f7f8fb;border-bottom:2px solid #d0d5dd">${Number(d.slice(8))}</th>`).join('')}<th style="position:sticky;top:0;z-index:2;background:#f7f8fb">Present</th><th style="position:sticky;top:0;z-index:2;background:#f7f8fb">Absent</th><th style="position:sticky;top:0;z-index:2;background:#f7f8fb">Total Hours</th><th style="position:sticky;top:0;z-index:2;background:#f7f8fb">Estimated Pay</th></tr></thead><tbody>
+    <div id="monthlyDateFloat" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:#f7f8fb;border-bottom:2px solid #d0d5dd;box-shadow:0 2px 8px rgba(0,0,0,.12);overflow:hidden"><div id="monthlyDateFloatInner" style="display:flex;min-width:max-content"></div></div><div style="overflow-x:auto;overflow-y:visible"><table style="display:table;border-collapse:separate;border-spacing:0"><thead><tr><th >Employee</th><th>Branch</th>${scheduledDates.map(d=>`<th style="position:sticky;top:0;z-index:20;background:#f7f8fb;border-bottom:2px solid #d0d5dd">${Number(d.slice(8))}</th>`).join('')}<th style="position:sticky;top:0;z-index:2;background:#f7f8fb">Present</th><th style="position:sticky;top:0;z-index:2;background:#f7f8fb">Absent</th><th style="position:sticky;top:0;z-index:2;background:#f7f8fb">Total Hours</th><th style="position:sticky;top:0;z-index:2;background:#f7f8fb">Estimated Pay</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td style="position:sticky;left:0;background:#fff"><b>${esc(r.e.full_name)}</b><br><span class="muted small">${esc(r.e.employee_code)}</span></td><td>${esc(branchName(r.e.branch_id))}</td>${scheduledDates.map(d=>`<td class="${r.dailyStatus[d]==='present'?'ok':r.dailyStatus[d]==='half'?'':'bad'}" style="text-align:center;font-weight:700">${r.dailyStatus[d]==='present'?'✓':r.dailyStatus[d]==='half'?'½':r.dailyStatus[d]==='future'?'—':'✗'}</td>`).join('')}<td class="ok">${fmtDays(r.present)}</td><td class="bad">${fmtDays(r.absent)}</td><td>${r.hours.toFixed(2)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</tbody></table></div>
   </div>`;
 }
-function fmtDays(n){return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(1);}
+function fmtDays(n){return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(1);}function setupMonthlyDateFloat(){
+  const table=document.querySelector('#monthlyDateFloat')?.nextElementSibling;
+  const bar=document.getElementById('monthlyDateFloat'),inner=document.getElementById('monthlyDateFloatInner');
+  if(!table||!bar||!inner)return;
+  const ths=[...table.querySelectorAll('thead th')];
+  const dateStart=2, dateEnd=dateStart+scheduledDates.length;
+  const dates=ths.slice(dateStart,dateEnd);
+  if(!dates.length)return;
+  inner.innerHTML='';
+  dates.forEach(th=>{
+    const x=document.createElement('div');
+    x.textContent=th.textContent.trim();
+    x.style.cssText='box-sizing:border-box;padding:11px 10px;border-right:1px solid #e5e7eb;text-align:center;font-size:12px;font-weight:800;color:#475467;flex:0 0 '+th.getBoundingClientRect().width+'px';
+    inner.appendChild(x);
+  });
+  const update=()=>{
+    const r=table.getBoundingClientRect();
+    bar.style.display=(r.top<0&&r.bottom>0)?'block':'none';
+    inner.style.transform='translateX('+Math.min(0,r.left)+'px)';
+  };
+  window.removeEventListener('scroll',update); window.addEventListener('scroll',update,{passive:true});
+  window.removeEventListener('resize',update); window.addEventListener('resize',update);
+  update();
+}
+setupMonthlyDateFloat();
 function loadSummaryMonth(){
   const v=document.getElementById('summaryMonth')?.value;if(v)history.replaceState(null,'','?month='+encodeURIComponent(v));summary();
 }
