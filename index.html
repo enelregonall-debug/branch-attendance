@@ -119,7 +119,7 @@ body.compact-tables table td{font-size:.9rem}
 </style>
 </head>
 <body>
-<div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device. Supervisor Assist does not use GPS.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate"><div class="login"><h2>🔐 Supervisor Login</h2><p class="muted">Sign in to manage employees, branch QR codes, branch locations, and attendance.</p><input id="loginEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password"><button onclick="login()">Sign In</button><button onclick="signup()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button><button onclick="resendConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button><div id="authMsg" class="authmsg small"></div><p class="muted small">Uses Supabase Auth. If your account is not confirmed yet, use Resend Confirmation Email and then sign in again.</p></div></div>
+<div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device. Supervisor Assist does not use GPS.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate"><div class="login"><h2 id="authTitle">🔐 Supervisor Login</h2><p id="authDesc" class="muted">Sign in to manage employees, branch QR codes, branch locations, and attendance.</p><input id="loginEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password"><button onclick="login()">Sign In</button><button id="createAccountBtn" onclick="signup()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button><button onclick="toggleBossLogin()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👑 Boss / Owner Login</button><button id="resendBtn" onclick="resendConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button><div id="authMsg" class="authmsg small"></div><p class="muted small">Uses Supabase Auth. Boss/Owner uses a separate account from Supervisor.</p></div></div>
 <header>
 <button class="logout" onclick="logout()">Log Out</button><span style="vertical-align:middle"><h2 style="display:inline">Katrinas Digital Attendance</h2><div>Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div></span>
 </header>
@@ -624,6 +624,25 @@ function renderAuth(){
   const gate=document.getElementById("authGate");
   if(session){ gate.style.display="none"; syncImportedDailyRates(); } else { gate.style.display="flex"; stop(); }
 }
+let authRole='supervisor';
+function toggleBossLogin(){
+  authRole=authRole==='boss'?'supervisor':'boss';
+  const title=document.getElementById('authTitle'), desc=document.getElementById('authDesc'), create=document.getElementById('createAccountBtn'), resend=document.getElementById('resendBtn');
+  if(authRole==='boss'){
+    title.textContent='👑 Boss / Owner Login';
+    desc.textContent='Sign in with the separate Boss/Owner account.';
+    document.getElementById('loginEmail').placeholder='Boss / Owner email';
+    create.textContent='Create Boss / Owner Account';
+    resend.style.display='none';
+  }else{
+    title.textContent='🔐 Supervisor Login';
+    desc.textContent='Sign in to manage employees, branch QR codes, branch locations, and attendance.';
+    document.getElementById('loginEmail').placeholder='Supervisor email';
+    create.textContent='Create Supervisor Account';
+    resend.style.display='';
+  }
+  document.getElementById('authMsg').textContent='';
+}
 async function login(){
   const email=document.getElementById("loginEmail").value.trim();
   const password=document.getElementById("loginPassword").value;
@@ -636,7 +655,15 @@ async function login(){
     if(/email not confirmed/i.test(msg)){m.innerHTML='<span class="bad">❌ Email not confirmed.</span><br><span class="muted small">Click “Resend Confirmation Email”, confirm it, then try Sign In again.</span>';return;}
     m.innerHTML='<span class="bad">❌ '+esc(msg)+'</span>';return;
   }
-  session=data.session; renderAuth(); syncImportedDailyRates(); page("dashboard");
+  session=data.session;
+  const role=session?.user?.user_metadata?.role||'supervisor';
+  if((authRole==='boss' && role!=='boss') || (authRole==='supervisor' && role==='boss')){
+    await sb.auth.signOut();
+    session=null;
+    m.innerHTML='<span class="bad">❌ Wrong account type. Please use the '+(authRole==='boss'?'Boss / Owner':'Supervisor')+' account.</span>';
+    return;
+  }
+  renderAuth(); syncImportedDailyRates(); page("dashboard");
 }
 async function resendConfirmation(){
   const email=document.getElementById("loginEmail").value.trim();
@@ -653,7 +680,7 @@ async function signup(){
   const m=document.getElementById("authMsg");
   if(!email||password.length<6){m.innerHTML='<span class="bad">Enter an email and a password with at least 6 characters.</span>';return;}
   m.textContent="Creating account…";
-  const {data,error}=await sb.auth.signUp({email,password});
+  const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:authRole}}});
   if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
   if(data.session){session=data.session;renderAuth();page("dashboard");}
   else m.innerHTML='<span class="ok">✅ Account created. Check your email for the confirmation link, then sign in.</span>';
