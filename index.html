@@ -891,14 +891,17 @@ async function summary(){
 function fmtDays(n){return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(1);}function setupMonthlyDateFloat(){
   const wrap=document.querySelector('#monthlyDateFloat')?.nextElementSibling;
   const table=wrap?.querySelector('table');
-  const bar=document.getElementById('monthlyDateFloat'),inner=document.getElementById('monthlyDateFloatInner');
+  const bar=document.getElementById('monthlyDateFloat');
+  const inner=document.getElementById('monthlyDateFloatInner');
   if(!table||!bar||!inner)return;
   const ths=[...table.querySelectorAll('thead th')];
-  const dateStart=2, dateEnd=dateStart+scheduledDates.length;
-  const dates=ths.slice(dateStart,dateEnd);
-  if(!dates.length)return;
+  if(ths.length<7)return;
+  const dateCells=ths.slice(2,-4);
   inner.innerHTML='';
-  dates.forEach(th=>{
+  const spacer=document.createElement('div');
+  spacer.style.cssText='flex:0 0 '+(ths[0].getBoundingClientRect().width+ths[1].getBoundingClientRect().width)+'px';
+  inner.appendChild(spacer);
+  dateCells.forEach(th=>{
     const x=document.createElement('div');
     x.textContent=th.textContent.trim();
     x.style.cssText='box-sizing:border-box;padding:11px 10px;border-right:1px solid #e5e7eb;text-align:center;font-size:12px;font-weight:800;color:#475467;flex:0 0 '+th.getBoundingClientRect().width+'px';
@@ -907,13 +910,14 @@ function fmtDays(n){return Number.isInteger(Number(n))?String(Number(n)):Number(
   const update=()=>{
     const r=table.getBoundingClientRect();
     bar.style.display=(r.top<0&&r.bottom>0)?'block':'none';
-    inner.style.transform='translateX('+Math.min(0,r.left)+'px)';
+    inner.style.transform='translateX('+r.left+'px)';
   };
-  window.removeEventListener('scroll',update); window.addEventListener('scroll',update,{passive:true});
-  window.removeEventListener('resize',update); window.addEventListener('resize',update);
+  window.removeEventListener('scroll',update);
+  window.addEventListener('scroll',update,{passive:true});
+  window.removeEventListener('resize',update);
+  window.addEventListener('resize',update);
   update();
 }
-setupMonthlyDateFloat();
 function loadSummaryMonth(){
   const v=document.getElementById('summaryMonth')?.value;if(v)history.replaceState(null,'','?month='+encodeURIComponent(v));summary();
 }
