@@ -191,7 +191,7 @@ const BRANCH_CACHE='bratt_branch_cache_v2';
 const DEVICE_BIND='bratt_registered_phone_v1';
 let employeeSession=null, employeeBranch=null;
 
-function isEmployeeMode(){ const q=new URLSearchParams(location.search); return q.has('branch')||q.has('branchId'); }
+function isEmployeeMode(){ const q=new URLSearchParams(location.search); return q.has('employee')||q.has('branch')||q.has('branchId'); }
 function getBranchToken(){ return new URLSearchParams(location.search).get('branch'); }
 function getBranchId(){ return new URLSearchParams(location.search).get('branchId'); }
 async function publicFetch(path, opts={}){
