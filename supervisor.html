@@ -182,6 +182,12 @@ async function render(page){
             <option value="full">WHOLE DAY</option>
             <option value="half">HALF DAY</option>
           </select>
+          <label style="margin:0;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700">TIME IN
+            <input id="manualTimeIn" type="time" value="08:00" style="width:125px;padding:10px">
+          </label>
+          <label style="margin:0;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700">TIME OUT
+            <input id="manualTimeOut" type="time" value="17:00" style="width:125px;padding:10px">
+          </label>
           <button id="manualSave" class="save-btn">💾 Save Manual Attendance</button>
         </div>
         <div class="panel" style="margin-top:12px;background:#f8fafc">
@@ -240,12 +246,18 @@ async function loadManualAttendancePage(){
   const emp=document.getElementById("manualEmployee");
   const date=document.getElementById("manualDate");
   const type=document.getElementById("manualType");
+  const timeIn=document.getElementById("manualTimeIn");
+  const timeOut=document.getElementById("manualTimeOut");
   const save=document.getElementById("manualSave");
   branch.innerHTML='<option value="">Select Branch</option>'+attendanceBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
   date.value=phDate();
   branch.onchange=loadManualEmployeesPage;
   date.onchange=loadManualExisting;
-  type.onchange=loadManualExisting;
+  type.onchange=()=>{
+    if(type.value==="half" && timeOut) timeOut.value="13:00";
+    if(type.value==="full" && timeOut) timeOut.value="17:00";
+    loadManualExisting();
+  };
   save.onclick=saveManualAttendance;
   await loadManualEmployeesPage();
   await loadManualExisting();
@@ -285,15 +297,16 @@ async function saveManualAttendance(){
   const emp=document.getElementById("manualEmployee")?.value;
   const date=document.getElementById("manualDate")?.value;
   const type=document.getElementById("manualType")?.value||"full";
-  if(!branch||!emp||!date){setManualMsg("Please select Branch, Employee and Date.",false);return}
+  const timeIn=document.getElementById("manualTimeIn")?.value||"";
+  const timeOut=document.getElementById("manualTimeOut")?.value||"";
+  if(!branch||!emp||!date||!timeIn||!timeOut){setManualMsg("Please select Branch, Employee, Date, Time In and Time Out.",false);return}
+  if(timeOut<=timeIn){setManualMsg("Time Out must be later than Time In.",false);return}
   const save=document.getElementById("manualSave");
   save.disabled=true;save.textContent="Saving…";setManualMsg("",true);
   try{
     const {data:employees,error:ee}=await sb.from("employees").select("id,employee_code,full_name,branch_id").eq("id",emp).eq("active",true).limit(1);
     if(ee)throw ee;
     const e=employees?.[0];if(!e)throw new Error("Employee not found.");
-    const timeIn=type==="half"?"08:00":"08:00";
-    const timeOut=type==="half"?"13:00":"17:00";
     const {data:existing,error:xe}=await sb.from("attendance").select("id").eq("employee_id",emp).eq("attendance_date",date).limit(1);
     if(xe)throw xe;
     const payload={employee_id:Number(e.id),branch_id:Number(branch),attendance_date:date,time_in:manualDateTimeLocal(date,timeIn),time_out:manualDateTimeLocal(date,timeOut)};
