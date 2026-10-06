@@ -35,13 +35,18 @@ self.addEventListener('fetch',event=>{
   const url=new URL(req.url);
   if(url.origin===self.location.origin && req.mode==='navigate'){
     event.respondWith((async()=>{
+      const cache=await caches.open(CACHE_NAME);
       try{
         const network=await fetch(req);
-        const cache=await caches.open(CACHE_NAME);
-        await cache.put('./index.html',network.clone());
+        if(network.ok){
+          await cache.put(req,network.clone());
+          if(url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')){
+            await cache.put('./index.html',network.clone());
+          }
+        }
         return network;
       }catch(e){
-        return (await caches.match('./index.html')) || (await caches.match('./'));
+        return (await cache.match(req)) || ((url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')) ? ((await cache.match('./index.html')) || (await cache.match('./'))) : Response.error());
       }
     })());
     return;
