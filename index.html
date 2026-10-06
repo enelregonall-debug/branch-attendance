@@ -12,6 +12,8 @@
 <script>
 /* Independent login bridge: does not depend on the large Back Office script finishing first. */
 window.quickLogin=async function(role){
+  const SUPABASE_URL='https://ktrrjldiniwqryuojjnq.supabase.co';
+  const SUPABASE_KEY='sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK';
   const email=document.getElementById('loginEmail')?.value.trim();
   const password=document.getElementById('loginPassword')?.value||'';
   const m=document.getElementById('loginMsg');
