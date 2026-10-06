@@ -1000,7 +1000,7 @@ async function attendance(){
   '</table><p class="muted small">Showing '+filtered.length+' attendance record(s). You can delete an incorrect attendance entry from here.</p></div>';
   loadManualEmployees(); const md=document.getElementById('manualDate'); if(md)md.value=localDateString();
 }
-async async function loadManualEmployees(){
+async function loadManualEmployees(){
   const sel=document.getElementById('manualEmp');
   if(!sel)return;
   try{
@@ -1043,7 +1043,7 @@ async function saveManualAttendance(){
     await attendance();
   }catch(e){msg.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';}
 }
-function deleteAttendance(id){
+async function deleteAttendance(id){
   if(!id)return;
   if(!confirm('Delete this attendance record? This cannot be undone.'))return;
   try{
