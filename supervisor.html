@@ -1,7 +1,1133 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><title>Katrinas Digital Attendance — Supervisor</title><style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#eef2f7,#f8fafc);font-family:"Book Antiqua",Palatino,serif;color:#172033}.box{width:min(430px,100%);background:#fff;padding:28px;border-radius:18px;box-shadow:0 20px 50px rgba(23,32,51,.16)}.brand{font-size:14px;font-weight:700;color:#8d1023;margin-bottom:18px}h2{margin:0 0 10px;color:#8d1023}p{color:#667085}input,button{width:100%;padding:12px;border-radius:10px;font:inherit;margin-top:10px}input{border:1px solid #d7dce5}button{border:0;background:#8d1023;color:#fff;font-weight:700}.secondary{background:#fff;color:#172033;border:1px solid #ccd3df}.msg{min-height:24px;margin-top:12px;font-size:14px}.bad{color:#b42318;font-weight:700}.ok{color:#087443;font-weight:700}</style></head><body><div class="box"><div class="brand">KATRINAS DIGITAL ATTENDANCE</div><h2>Supervisor Sign In</h2><p>Full back-office access: Employees, Branch QR, Attendance and Monthly Summary.</p><input id="email" type="email" placeholder="Supervisor email" autocomplete="username"><input id="password" type="password" placeholder="Supervisor password" autocomplete="current-password"><button id="loginBtn" onclick="login()">🔐 Sign In</button><button class="secondary" onclick="signup()">Create Supervisor Account</button><button class="secondary" onclick="resend()">Resend Confirmation Email</button><div id="msg" class="msg"></div></div><script>
-const U="https://ktrrjldiniwqryuojjnq.supabase.co",K="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK",AUTH=U+"/auth/v1";
-const msg=()=>document.getElementById("msg");
-async function login(){const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value,btn=document.getElementById("loginBtn");if(!email||!password){msg().innerHTML='<span class="bad">Enter email and password.</span>';return}btn.disabled=true;msg().textContent="Signing in…";try{const r=await fetch(AUTH+"/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":K},body:JSON.stringify({email,password})});const d=await r.json();if(!r.ok)throw new Error(d.error_description||d.msg||d.message||"Invalid login credentials");const role=d.user?.user_metadata?.role||"supervisor";if(role==="boss"){throw new Error("This is the Employer / Owner account. Please use the Employer login.")}sessionStorage.setItem("kda_access_token",d.access_token||"");sessionStorage.setItem("kda_refresh_token",d.refresh_token||"");localStorage.setItem("sb-ktrrjldiniwqryuojjnq-auth-token",JSON.stringify({access_token:d.access_token||"",refresh_token:d.refresh_token||"",expires_in:d.expires_in||3600,expires_at:Math.floor(Date.now()/1000)+(d.expires_in||3600),token_type:d.token_type||"bearer",user:d.user||null}));location.replace("./index.html?supervisor=1")}catch(e){msg().innerHTML='<span class="bad">❌ '+String(e.message||e)+'</span>';btn.disabled=false}}
-async function signup(){const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;if(!email||password.length<6){msg().innerHTML='<span class="bad">Enter an email and password with at least 6 characters.</span>';return}msg().textContent="Creating account…";try{const r=await fetch(AUTH+"/signup",{method:"POST",headers:{"Content-Type":"application/json","apikey":K},body:JSON.stringify({email,password,data:{role:"supervisor"}})});const d=await r.json();if(!r.ok)throw new Error(d.msg||d.message||"Could not create account");msg().innerHTML=d.access_token?'<span class="ok">✅ Account created. Opening Supervisor Browser…</span>':'<span class="ok">✅ Account created. Check your email for confirmation.</span>';if(d.access_token){sessionStorage.setItem("kda_access_token",d.access_token);sessionStorage.setItem("kda_refresh_token",d.refresh_token||"");localStorage.setItem("sb-ktrrjldiniwqryuojjnq-auth-token",JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token||"",expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,token_type:"bearer",user:d.user||null}));setTimeout(()=>location.replace("./index.html?supervisor=1"),300)}}catch(e){msg().innerHTML='<span class="bad">❌ '+String(e.message||e)+'</span>'}}
-async function resend(){const email=document.getElementById("email").value.trim();if(!email){msg().innerHTML='<span class="bad">Enter your supervisor email first.</span>';return}msg().textContent="Sending confirmation email…";try{const r=await fetch(AUTH+"/resend",{method:"POST",headers:{"Content-Type":"application/json","apikey":K},body:JSON.stringify({type:"signup",email})});const d=await r.json();if(!r.ok)throw new Error(d.msg||d.message||"Could not resend confirmation");msg().innerHTML='<span class="ok">✅ Confirmation email sent. Check Inbox and Spam/Junk.</span>'}catch(e){msg().innerHTML='<span class="bad">❌ '+String(e.message||e)+'</span>'}}
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Katrinas Digital Attendance</title>
+<link rel="manifest" href="manifest.json">
+
+
+
+<style>
+:root{
+  --ink:#172033;--ink2:#263451;--gold:#d6a84f;--gold2:#f3d58a;
+  --bg:#f5f7fb;--card:#ffffff;--line:#e6eaf0;--muted:#667085;
+  --green:#087443;--red:#b42318;--shadow:0 10px 30px rgba(23,32,51,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:"Book Antiqua",Palatino,"Palatino Linotype",serif;margin:0;background:linear-gradient(180deg,#f7f8fb 0%,#f2f5f9 100%);color:var(--ink);line-height:1.45}
+header{background:linear-gradient(135deg,#8d1023 0%,#b51f32 65%,#d02d42 100%);color:#fff;padding:22px 20px;box-shadow:0 5px 20px rgba(17,26,43,.18);position:relative;overflow:hidden}
+header:after{content:"";position:absolute;width:180px;height:180px;border:1px solid rgba(243,213,138,.2);border-radius:50%;right:-55px;top:-85px}
+header h1,header h2,header h3{margin:0}
+nav{background:rgba(255,255,255,.94);backdrop-filter:blur(12px);padding:11px 14px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);box-shadow:0 4px 16px rgba(23,32,51,.05)}
+button,input,select{padding:10px 12px;border:1px solid #d7dce5;border-radius:10px;font:inherit;transition:.18s ease}
+button{background:var(--ink);color:#fff;cursor:pointer;font-weight:600;box-shadow:0 2px 5px rgba(23,32,51,.08)}
+button:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(23,32,51,.12)}
+button:active{transform:translateY(0)}
+input,select{background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(214,168,79,.16)}
+main{max-width:1180px;margin:auto;padding:22px 16px 40px}
+.card{background:var(--card);padding:20px;margin-bottom:16px;border:1px solid rgba(230,234,240,.9);border-radius:16px;box-shadow:var(--shadow)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.stat{font-size:30px;font-weight:800;letter-spacing:-.5px;color:var(--ink)}
+table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:12px}
+td,th{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{background:#f7f8fb;color:#475467;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+tr:hover td{background:#fbfcfe}
+.ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}.muted{color:var(--muted)}
+#reader{max-width:500px;margin:auto}.center{text-align:center}
+.small{font-size:13px}.pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#eef2ff;color:#344054;font-weight:600}
+.notice{padding:12px 14px;border-radius:10px;background:#fff8e8;border:1px solid #f4dfad;margin-bottom:12px}
+.login{width:min(430px,100%);background:#fff;padding:26px;border-radius:18px;border:1px solid var(--line);box-shadow:0 20px 50px rgba(23,32,51,.16)}
+.login h2{letter-spacing:-.3px}
+#authGate{position:fixed;inset:0;background:linear-gradient(135deg,#eef2f7,#f8fafc);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+#employeeGate{background:linear-gradient(135deg,#eef2f7,#f8fafc)!important}
+.logout{float:right;background:#fff;color:var(--ink);border:1px solid #ccd3df}
+.authmsg{margin-top:12px;min-height:20px}
+/* Theme options */
+body.theme-navy{--ink:#172033;--ink2:#263451;--gold:#d6a84f;--bg:#f5f7fb;--card:#fff;--line:#e6eaf0;--muted:#667085;background:linear-gradient(180deg,#f7f8fb,#f2f5f9)}
+body.theme-navy header{background:linear-gradient(135deg,#111a2b,#1f2d49 65%,#283b5d)}
+body.theme-navy th{background:#f7f8fb;color:#475467}
+body.theme-navy .pill{background:#eef2ff;color:#344054}
+body.theme-green{--ink:#174d3b;--ink2:#236b52;--gold:#c9a227;--bg:#f4faf7;--card:#fff;--line:#dcebe4;--muted:#66756e;background:linear-gradient(180deg,#f8fcfa,#eef7f2)}
+body.theme-green header{background:linear-gradient(135deg,#123c30,#1d6049 65%,#2b7a5d)}
+body.theme-green th{background:#f0f8f4;color:#174d3b}
+body.theme-green .pill{background:#e7f5ee;color:#174d3b}
+body.theme-notebook{--ink:#3e3428;--ink2:#5d4b39;--gold:#b78b45;--bg:#faf8f2;--card:#fffdf8;--line:#e6dfd1;--muted:#756b5d;background:#f7f3e9}
+body.theme-notebook header{background:linear-gradient(135deg,#6d4c35,#8a6446 65%,#a17a55)}
+body.theme-notebook main{background-image:linear-gradient(rgba(120,100,70,.06) 1px,transparent 1px);background-size:100% 28px}
+body.theme-notebook th{background:#f4efe4;color:#5d4b39}
+body.theme-notebook .pill{background:#eee6d7;color:#5d4b39}
+body.theme-blackgold{--ink:#171717;--ink2:#2a2a2a;--gold:#d4af37;--bg:#f5f5f5;--card:#fff;--line:#ddd;--muted:#666;background:#f4f4f4}
+body.theme-blackgold header{background:linear-gradient(135deg,#101010,#252525 65%,#3a321b)}
+body.theme-blackgold th{background:#f3f0e5;color:#5b4810}
+body.theme-blackgold .pill{background:#f4efdc;color:#5b4810}
+body.theme-coffee{--ink:#5b3a29;--ink2:#7b5239;--gold:#c79a63;--bg:#fbf5ed;--card:#fffdf9;--line:#eadbc9;--muted:#796b60;background:#faf3ea}
+body.theme-coffee header{background:linear-gradient(135deg,#4a2d20,#70452f 65%,#9a6948)}
+body.theme-coffee th{background:#f5eadc;color:#5b3a29}
+body.theme-coffee .pill{background:#f2e5d5;color:#5b3a29}
+body.theme-purple{--ink:#4a2868;--ink2:#693a8f;--gold:#c5a3e8;--bg:#faf7ff;--card:#fff;--line:#e7daf2;--muted:#75677f;background:#f8f4fc}
+body.theme-purple header{background:linear-gradient(135deg,#392052,#5b2f80 65%,#7b4aa0)}
+body.theme-purple th{background:#f4edf9;color:#4a2868}
+body.theme-purple .pill{background:#eee4f7;color:#4a2868}
+body.theme-sky{--ink:#155b78;--ink2:#207da3;--gold:#7dc6df;--bg:#f3fbfe;--card:#fff;--line:#d7eaf1;--muted:#637b86;background:#f1f9fc}
+body.theme-sky header{background:linear-gradient(135deg,#124c68,#1d7293 65%,#3c9bb8)}
+body.theme-sky th{background:#eaf6fa;color:#155b78}
+body.theme-sky .pill{background:#e0f2f7;color:#155b78}
+body.theme-rose{--ink:#8a3f55;--ink2:#a9566e;--gold:#d7a1b0;--bg:#fff7f9;--card:#fff;--line:#efdde2;--muted:#806d73;background:#fff5f7}
+body.theme-rose header{background:linear-gradient(135deg,#733246,#a34b63 65%,#c66b82)}
+body.theme-rose th{background:#faedf1;color:#8a3f55}
+body.theme-rose .pill{background:#f8e5eb;color:#8a3f55}
+body.theme-terra{--ink:#873f25;--ink2:#a85532;--gold:#d6a25f;--bg:#fff8f2;--card:#fffdf9;--line:#ecd9ca;--muted:#806e64;background:#fff6ef}
+body.theme-terra header{background:linear-gradient(135deg,#73351f,#a34e2f 65%,#c76b43)}
+body.theme-terra th{background:#faeee5;color:#873f25}
+body.theme-terra .pill{background:#f7e5d8;color:#873f25}
+/* Preset themes */
+body.preset-corporate{--ink:#172033;--ink2:#263451;--gold:#b18a3b;--bg:#f5f7fb;--card:#fff;--line:#e3e7ee;--muted:#667085;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif}
+body.preset-katrina{--ink:#7b1720;--ink2:#a6202b;--gold:#d3a13a;--bg:#fff7f7;--card:#fff;--line:#ead8da;--muted:#76686a;background:#fff5f5;font-family:"Book Antiqua",Palatino,"Palatino Linotype",serif}
+body.preset-elegant{--ink:#29262d;--ink2:#4d4555;--gold:#b59a5a;--bg:#f8f6f2;--card:#fffdf9;--line:#e5ded2;--muted:#746e67;background:#f6f3ed;font-family:Garamond,Georgia,serif}
+body.preset-warm{--ink:#5b3a29;--ink2:#7b5239;--gold:#c79a63;--bg:#fbf5ed;--card:#fffdf9;--line:#eadbc9;--muted:#796b60;background:#faf3ea;font-family:"Book Antiqua",Palatino,serif}
+body.preset-fresh{--ink:#174d3b;--ink2:#236b52;--gold:#c9a227;--bg:#f4faf7;--card:#fff;--line:#dcebe4;--muted:#66756e;background:#f2f9f5;font-family:"Trebuchet MS",Arial,sans-serif}
+body.preset-dark{--ink:#f3f1ec;--ink2:#d8c99e;--gold:#d6af4b;--bg:#151515;--card:#202020;--line:#393939;--muted:#b5b0a6;background:#111}
+body.preset-dark header{background:linear-gradient(135deg,#090909,#242424 65%,#4a3b18)}
+body.preset-dark main,body.preset-dark section,body.preset-dark .card{color:var(--ink)}
+body.preset-dark input,body.preset-dark select,body.preset-dark textarea{background:#292929;color:#f3f1ec;border-color:#494949}
+body.preset-dark th{background:#292929;color:#d8c99e}
+body.preset-dark td{border-color:#393939}
+body.preset-dark .pill{background:#383323;color:#e3cf91}
+body.compact-tables table th,body.compact-tables table td{padding:6px 8px;line-height:1.2}
+body.compact-tables table th{font-size:.88rem}
+body.compact-tables table td{font-size:.9rem}
+
+@media(max-width:700px){
+  header{padding:18px 15px}
+  nav{padding:9px;gap:6px}
+  nav button{flex:1 1 auto}
+  main{padding:15px 10px 30px}
+  .card{padding:15px;border-radius:14px}
+  .stat{font-size:26px}
+  table{font-size:13px;display:block;overflow-x:auto;white-space:nowrap}
+  td,th{padding:8px}
+  .grid{grid-template-columns:1fr}
+  nav label{margin-left:0!important;width:100%;justify-content:flex-end}
+}
+
+</style>
+</head>
+<body>
+<div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device. Supervisor Assist does not use GPS.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate">
+  <div style="width:min(430px,100%);display:block">
+    <div class="login">
+      <div style="font-size:34px">🔐</div>
+      <h2>Supervisor Sign In</h2>
+      <p class="muted">Full back-office access: employees, branches, QR, attendance, manual attendance and monthly summary.</p>
+      <input id="supervisorEmail" type="email" placeholder="Supervisor email" autocomplete="username">
+      <input id="supervisorPassword" type="password" placeholder="Supervisor password" autocomplete="current-password">
+      <button onclick="loginAs('supervisor')">🔐 Sign In as Supervisor</button>
+      <button onclick="signupAsSupervisor()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button>
+      <button onclick="resendSupervisorConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
+      <div id="supervisorMsg" class="authmsg small"></div>
+    </div>
+</div></div>
+<header>
+<button class="logout" onclick="logout()">Log Out</button><span style="vertical-align:middle"><h2 style="display:inline">Katrinas Digital Attendance</h2><div>Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div></span>
+</header>
+<nav>
+<button onclick="page('dashboard')">Dashboard</button>
+<button onclick="page('employees')">Employees</button>
+<button onclick="page('branchqrs')">🏪 Branch QR</button>
+<button onclick="page('attendance')">Attendance</button>
+<button onclick="page('summary')">📊 Monthly Summary</button>
+<button onclick="toggleCustomize()" id="customizeBtn">⚙️ Customize</button>
+<div id="customizePanel" style="display:none;position:absolute;right:16px;top:58px;z-index:1000;background:var(--card);color:var(--ink);padding:14px;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);min-width:230px">
+  <div style="font-weight:700;margin-bottom:10px">Appearance</div>
+  <label style="display:block;margin-bottom:9px"><span class="small">✨ Preset</span><select id="presetSelect" onchange="setPreset(this.value)" style="width:100%;padding:8px 10px"><option value="katrina">Katrina Red</option><option value="corporate">Corporate</option><option value="elegant">Elegant</option><option value="warm">Warm</option><option value="fresh">Fresh</option><option value="dark">Dark Premium</option></select></label>
+  <label style="display:block;margin-bottom:9px"><span class="small">🎨 Theme</span><select id="themeSelect" onchange="setTheme(this.value)" style="width:100%;padding:8px 10px"><option value="red">Red Classic</option><option value="navy">Navy & Gold</option><option value="green">Green Elegant</option><option value="notebook">Notebook Clean</option><option value="blackgold">Black & Gold</option><option value="coffee">Coffee & Cream</option><option value="purple">Royal Purple</option><option value="sky">Sky Blue</option><option value="rose">Soft Rose</option><option value="terra">Warm Terracotta</option></select></label>
+  <label style="display:block;margin-bottom:9px"><span class="small">🔤 Font</span><select id="fontSelect" onchange="setFont(this.value)" style="width:100%;padding:8px 10px"><option value="antiqua">Book Antiqua</option><option value="poppins">Poppins</option><option value="georgia">Georgia</option><option value="garamond">Garamond</option><option value="trebuchet">Trebuchet MS</option><option value="verdana">Verdana</option></select></label>
+  <label style="display:block"><span class="small">📏 Rows</span><select id="densitySelect" onchange="setTableDensity(this.value)" style="width:100%;padding:8px 10px"><option value="compact">Compact</option><option value="comfortable">Comfortable</option></select></label>
+</div>
+</nav></nav>
+<main id="app"><div class="card">Loading…</div></main>
+
+
+<script>
+(function(){
+  try{
+    const q=new URLSearchParams(location.search);
+    if(!q.has('branchId') && !q.has('branch') && !localStorage.getItem('sb-ktrrjldiniwqryuojjnq-auth-token') && !sessionStorage.getItem('kda_access_token')){
+      location.replace('./supervisor.html');
+      return;
+    }
+    if(q.has('branchId') || q.has('branch')){
+      const qs=location.search;
+      const target=new URL('./employee.html',location.href);
+      target.search=qs;
+      location.replace(target.href);
+    }
+  }catch(e){}
+})();
+</script><script>
+const SUPABASE_URL = "https://ktrrjldiniwqryuojjnq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
+const DAILY_RATE_IMPORT_20260928 = {
+"LLANO, GERLENE L.":533.33,"ASUNCION, BENJAMEN C.":300,"BORRES, RUBELYN R.":250,"GAY-OD, SHIELA":366.66,"GEMPESAW, MYLEN":250,"OSIO, FLORAMAE":250,"RABASANO FE":333.33,
+"COTIC, MAYBE L.":250,"ROSAGARAN, SARAH":400,"BACLAAN, ESTER":250,"ROGON, VICTORIA":400,"MEJORADA, JOYLEN":200,"AVERGANZADO, ANITA":250,
+"BALAG, KYLA MARIE":266.66,"CABALLERO, KRISNA":350,"GACIS, MICO BRYLLE":250,"MALBASIAS, JACK":350,"MONTOJO, CYNTHIA G":666.66,
+"PALEN, WILLIAM JR.":500,"PENONG, MARITES":300,"SARANI, ROSELA":250,"SILAGAN, MARY ANN":250,"TALICUSAY, MARYGRACE":300,
+"AGONIA, PERPETUA":350,"ALFONSO, JEANY":300,"SARO, JHOY":300,"CARTALLA, JOMEL":350,"MANGAPIS, RUTH":250,"FLOJO, GRACE":500,
+"FUENTES,VIRGIE R.":400,"GOMEZ, MARCELINA R.":500,"TALICUSAY, RENIEL":266.66,"DELAPA, ROSEMARE M.":400,"LOPEZ, PEDILA S.":400,
+"RUELAN, ROSALINDA":266.66,"TALICUSAY, MANELYN":266.66,"SANDOVAL, ANGEL":250,"LOPEZ, RADING":300,"ELEJORDE, MERYROSE":250,
+"DALAGO, ROLAND":500,"GOMEZ, ROEL Q.":350,"LARA, ANTONIO":600,"LUMAGOD, ARLENE L.":500,"TABULADO, BERNARD":283.33,
+"AGUILON, JAYSON":250,"AYUBAN, MARGIE":300,"BASBAS, ABEL":250,"DEJON, ANGEL V.":400,"LUMAGOD, EMILDA":250,"MORA, LOLITA":400,
+"OSIO, MARYCRIS E.":300,"PAGAR, NORMELITA P":400,"PEPITO, JEMAR":333.33,"GEONSON, MARIFEL":250,"PROCORATO, ANGEL JR.":400,
+"CALO-OY, MIRLY G.":250,"MANTOG, CLAIDE Q.":250,"LUMAGOD, KIANJAY B.":250,"GALINDO, ANNALUNA B.":250,"MUCA, PERFECTO L.":250,
+"ALQUIZAR, KEITHGEMM M.":250,"SERAG, DANICA ROSE":250,"ACTIVA, LJ MAE P.":250,"TUNGGAY, VILMA":250
+};
+async function syncImportedDailyRates(){
+  const key='bratt_daily_rate_import_20260928_v1';
+  if(localStorage.getItem(key)==='done' || !session) return;
+  try{
+    const {data,error}=await sb.from('employees').select('id,full_name');
+    if(error||!Array.isArray(data)) return;
+    let updated=0;
+    for(const e of data){
+      const name=String(e.full_name||'').trim();
+      const rate=DAILY_RATE_IMPORT_20260928[name];
+      if(rate==null) continue;
+      const {error:ue}=await sb.from('employees').update({daily_rate:rate}).eq('id',e.id);
+      if(!ue) updated++;
+    }
+    localStorage.setItem(key,'done');
+    console.log('Daily rate import complete:',updated);
+  }catch(err){console.warn('Daily rate import failed:',err);}
+}
+
+const API = SUPABASE_URL + "/rest/v1";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+let sb = null;
+function loadScriptOnce(src){return new Promise((resolve,reject)=>{const existing=[...document.scripts].find(s=>s.src===src);if(existing){if(window.supabase&&src.includes("supabase"))return resolve();return existing.addEventListener("load",resolve,{once:true}),existing.addEventListener("error",reject,{once:true});}const s=document.createElement("script");s.src=src;s.async=true;s.onload=()=>resolve();s.onerror=()=>reject(new Error("Could not load required script."));document.head.appendChild(s);});}
+async function ensureSupabase(){if(!window.supabase) await loadScriptOnce("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"); if(!sb) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); return sb;}
+async function ensureQRCode(){if(!window.QRCode) await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"); return window.QRCode;}
+let session = null;
+const BRANCHES = ["Katrina's 1","Katrina's Bites","Katrinas 3","Katrina's Grill","Katrina's Kambingan","D' Sisters","Jeoff Consumer Goods Trading","Jeoff Laundry","K- Corner","Comissary"];
+let cam=null, locked=false, sameQrLocked=false, noQrTimer=null, lastScanToken="", lastScanAt=0, branches=[];
+const EMP_CACHE='bratt_employee_cache_v2', QUEUE_KEY='bratt_offline_queue_v1', LOCAL_ATT='bratt_local_attendance_v1';
+const BRANCH_CACHE='bratt_branch_cache_v2';
+const DEVICE_BIND='bratt_registered_phone_v1';
+let employeeSession=null, employeeBranch=null;
+// Back Office no longer uses a camera on this page. Keep navigation/login safe.
+function stop(){}
+
+function isEmployeeMode(){ return false; }
+function getBranchToken(){ return new URLSearchParams(location.search).get('branch'); }
+function getBranchId(){ return new URLSearchParams(location.search).get('branchId'); }
+async function publicFetch(path, opts={}){
+  const headers={apikey:SUPABASE_KEY, Authorization:'Bearer '+SUPABASE_KEY, ...(opts.headers||{})};
+  const r=await fetch(API+path,{...opts,headers});
+  if(!r.ok){
+    let msg='HTTP '+r.status;
+    try{const b=await r.clone().json(); msg=b.message||b.hint||b.details||msg;}catch{}
+    throw new Error(msg);
+  }
+  return r;
+}
+function getCache(){ try{return JSON.parse(localStorage.getItem(EMP_CACHE)||'{}')}catch{return {}} }
+function setCache(x){localStorage.setItem(EMP_CACHE,JSON.stringify(x))}
+function getQueue(){ try{return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]')}catch{return []} }
+function setQueue(x){localStorage.setItem(QUEUE_KEY,JSON.stringify(x))}
+function getLocalAtt(){ try{return JSON.parse(localStorage.getItem(LOCAL_ATT)||'{}')}catch{return {}} }
+function setLocalAtt(x){localStorage.setItem(LOCAL_ATT,JSON.stringify(x))}
+async function sha256(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function toggleCustomize(){
+  const p=document.getElementById('customizePanel');
+  if(p) p.style.display=p.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  const p=document.getElementById('customizePanel'), b=document.getElementById('customizeBtn');
+  if(p && p.style.display==='block' && !p.contains(e.target) && e.target!==b) p.style.display='none';
+});
+function setPreset(preset){
+  const allowed=['corporate','katrina','elegant','warm','fresh','dark'];
+  if(!allowed.includes(preset)) preset='katrina';
+  document.body.classList.remove('preset-corporate','preset-katrina','preset-elegant','preset-warm','preset-fresh','preset-dark');
+  document.body.classList.add('preset-'+preset);
+  localStorage.setItem('bratt_preset',preset);
+  const el=document.getElementById('presetSelect'); if(el) el.value=preset;
+}
+function initPreset(){
+  const saved=localStorage.getItem('bratt_preset')||'katrina';
+  setPreset(saved);
+}
+function setTheme(theme){
+  const allowed=['red','navy','green','notebook','blackgold','coffee','purple','sky','rose','terra'];
+  if(!allowed.includes(theme)) theme='red';
+  document.body.classList.remove('theme-navy','theme-green','theme-notebook','theme-blackgold','theme-coffee','theme-purple','theme-sky','theme-rose','theme-terra');
+  if(theme!=='red') document.body.classList.add('theme-'+theme);
+  localStorage.setItem('bratt_theme',theme);
+  const el=document.getElementById('themeSelect'); if(el) el.value=theme;
+}
+function setFont(font){
+  const allowed=['antiqua','poppins','georgia','garamond','trebuchet','verdana'];
+  if(!allowed.includes(font)) font='antiqua';
+  document.body.classList.remove('font-antiqua','font-poppins','font-georgia','font-garamond','font-trebuchet','font-verdana');
+  document.body.classList.add('font-'+font);
+  localStorage.setItem('bratt_font',font);
+  const el=document.getElementById('fontSelect'); if(el) el.value=font;
+}
+function initFont(){
+  const saved=localStorage.getItem('bratt_font')||'antiqua';
+  setFont(saved);
+}
+function setTableDensity(density){
+  document.body.classList.toggle('compact-tables',density==='compact');
+  localStorage.setItem('bratt_table_density',density);
+  const el=document.getElementById('densitySelect'); if(el) el.value=density;
+}
+function initTableDensity(){
+  const saved=localStorage.getItem('bratt_table_density')||'compact';
+  setTableDensity(saved);
+}
+function initTheme(){
+  const saved=localStorage.getItem('bratt_theme')||'red';
+  setTheme(saved);
+}
+async function initEmployeeMode(){
+  const token=getBranchToken(), branchId=getBranchId();
+  try{
+    if(navigator.onLine){
+      let br=[];
+      // Prefer branchId in the QR so verification still works if a token is stale or unavailable.
+      if(branchId){
+        const r=await publicFetch('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m');
+        if(r.ok) br=await r.json();
+      }
+      // Fallback to the QR token for older QR codes.
+      if(!br.length && token){
+        const r=await publicFetch('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m');
+        if(r.ok) br=await r.json();
+      }
+      if(br[0]){
+        employeeBranch=br[0];
+        localStorage.setItem(BRANCH_CACHE,JSON.stringify(br[0]));
+        try{
+          const r=await publicFetch('/employees?active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+          if(!r.ok) throw new Error('Could not load employees ('+r.status+').');
+          const rows=await r.json();
+          setCachedEmployees(rows.map(e=>({id:e.id,employee_code:e.employee_code,full_name:e.full_name,position:e.position,branch_id:e.branch_id,active:true})));
+        }catch(e){ console.warn('Employee list refresh:',e); }
+      }
+    }
+  }catch(err){ console.warn('Branch verification:',err); }
+  if(!employeeBranch){try{employeeBranch=JSON.parse(localStorage.getItem(BRANCH_CACHE)||'null')}catch{}}
+  document.getElementById('authGate').style.display='none';
+  document.querySelector('header').style.display='none';
+  document.querySelector('nav').style.display='none';
+  document.getElementById('employeeGate').style.display='flex';
+  document.getElementById('branchLabel').textContent=employeeBranch?'Branch: '+employeeBranch.name:'Branch QR could not be verified on this phone.';
+  populateEmployeeSelect();
+  await syncQueue();
+}
+function getCachedEmployees(){try{return JSON.parse(localStorage.getItem(EMP_CACHE)||'[]')}catch{return []}}
+function getDeviceBind(){try{return JSON.parse(localStorage.getItem(DEVICE_BIND)||'null')}catch{return null}}
+function setDeviceBind(x){localStorage.setItem(DEVICE_BIND,JSON.stringify(x))}
+function clearEmployeeSelectionUI(){
+  const sel=document.getElementById('empSelect'), rb=document.getElementById('registerPhoneBtn'), ab=document.getElementById('attendanceStartBtn');
+  const bind=getDeviceBind();
+  if(bind){
+    sel.innerHTML='<option value="'+esc(bind.employee_code)+'">'+esc(bind.full_name)+' — '+esc(bind.employee_code)+'</option>';
+    sel.value=bind.employee_code; sel.disabled=true;
+    rb.style.display='none';
+    ab.style.display='block';
+  }else{
+    sel.disabled=false; rb.style.display='block'; ab.style.display='block';
+  }
+}
+function setCachedEmployees(x){localStorage.setItem(EMP_CACHE,JSON.stringify(x))}
+function populateEmployeeSelect(){
+  const sel=document.getElementById('empSelect'); if(!sel)return;
+  const bind=getDeviceBind();
+
+  // For a registered phone, identify the employee first.
+  // Do NOT filter the registered employee by the current branch here.
+  // NULL/empty branch_id means ANY BRANCH.
+  if(bind){
+    const list=getCachedEmployees().filter(e=>e.active!==false);
+    const match=list.find(e=>String(e.id)===String(bind.employee_id)||e.employee_code===bind.employee_code);
+    if(match){
+      const assignedBranch=(match.branch_id===null||match.branch_id===undefined||match.branch_id==='')?null:Number(match.branch_id);
+      if(assignedBranch!==null && employeeBranch && assignedBranch!==Number(employeeBranch.id)){
+        sel.innerHTML='<option value="">Registered employee is not assigned to this branch.</option>';
+        sel.disabled=true;
+        document.getElementById('registerPhoneBtn').style.display='none';
+        document.getElementById('attendanceStartBtn').style.display='none';
+        document.getElementById('empMsg').innerHTML='<span class="bad">🚫 This phone is registered to an employee assigned to another branch.</span>';
+        return;
+      }
+      sel.innerHTML='<option value="'+esc(match.employee_code)+'">'+esc(match.full_name)+' — '+esc(match.employee_code)+'</option>';
+      sel.value=match.employee_code; sel.disabled=true;
+      document.getElementById('registerPhoneBtn').style.display='none';
+      document.getElementById('attendanceStartBtn').style.display='block';
+      document.getElementById('empMsg').innerHTML='<span class="ok">📱 This phone is registered to '+esc(match.full_name)+'.</span>';
+      return;
+    }
+    sel.innerHTML='<option value="">Registered employee not found.</option>';
+    sel.disabled=true;
+    document.getElementById('registerPhoneBtn').style.display='none';
+    document.getElementById('attendanceStartBtn').style.display='none';
+    document.getElementById('empMsg').innerHTML='<span class="bad">Registered employee could not be loaded. Refresh while online.</span>';
+    return;
+  }
+
+  const list=getCachedEmployees().filter(e=>e.active!==false && (!employeeBranch || e.branch_id==null || Number(e.branch_id)===Number(employeeBranch.id)));
+  sel.disabled=false;
+  sel.innerHTML='<option value="">Select your name</option>'+list.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
+  document.getElementById('registerPhoneBtn').style.display='block';
+  document.getElementById('attendanceStartBtn').style.display='block';
+}
+async function getPosition(){
+  if(!navigator.geolocation) throw new Error('Location is not available on this phone/browser.');
+  if(location.protocol!=='https:' && location.hostname!=='localhost') throw new Error('GPS needs the HTTPS system link.');
+  return new Promise((resolve,reject)=>{
+    let done=false;
+    const finish=(fn,v)=>{if(done)return;done=true;fn(v)};
+    const opts={enableHighAccuracy:true,timeout:20000,maximumAge:0};
+    navigator.geolocation.getCurrentPosition(
+      p=>finish(resolve,p),
+      e=>finish(reject,new Error(e.code===1?'Location permission is denied. Please allow Location for this site in your browser settings.':e.code===2?'GPS signal is not ready yet. Turn ON phone Location/GPS and try again.':e.code===3?'GPS took too long to get a fix. Keep Location ON and try again in an open area.':'Could not read the phone location. Please turn Location/GPS OFF and ON, then try again.')),
+      opts
+    );
+  });
+}
+function distanceMeters(lat1,lon1,lat2,lon2){const R=6371000,rad=Math.PI/180,dLat=(lat2-lat1)*rad,dLon=(lon2-lon1)*rad;const a=Math.sin(dLat/2)**2+Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(a));}
+async function verifyInsideBranch(){
+  if(!employeeBranch || employeeBranch.latitude==null || employeeBranch.longitude==null) throw new Error('This branch location is not set yet. Ask the Supervisor to set the branch location first.');
+  const pos=await getPosition();
+  const lat=pos.coords.latitude, lon=pos.coords.longitude, acc=Number(pos.coords.accuracy||9999);
+  const dist=distanceMeters(lat,lon,Number(employeeBranch.latitude),Number(employeeBranch.longitude));
+  const radius=Number(employeeBranch.radius_m||75);
+  if(dist > radius) throw new Error('You are outside '+employeeBranch.name+'. Attendance is allowed only inside the branch area.');
+  return {dist,acc};
+}
+function openNoPhoneAssist(){
+  const modal=document.getElementById('noPhoneModal');
+  modal.style.display='flex';
+  document.getElementById('assistMsg').textContent='';
+  document.getElementById('assistPanel').style.display='none';
+  document.getElementById('assistEmail').value='';
+  document.getElementById('assistPassword').value='';
+}
+async function closeNoPhoneAssist(){
+  try{if(session) await sb.auth.signOut();}catch(e){}
+  session=null;
+  document.getElementById('noPhoneModal').style.display='none';
+}
+async function supervisorAssistLogin(){
+  const email=document.getElementById('assistEmail').value.trim();
+  const password=document.getElementById('assistPassword').value;
+  const m=document.getElementById('assistMsg');
+  if(!navigator.onLine){m.innerHTML='<span class="bad">Supervisor-assisted attendance needs internet.</span>';return;}
+  if(!email||!password){m.innerHTML='<span class="bad">Enter the Supervisor email and password.</span>';return;}
+  m.textContent='Signing in…';
+  try{
+    // Make sure the Supabase client is ready before authentication.
+    await ensureSupabase();
+    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
+    session=data.session;
+    // Use the employee cache already loaded by the Branch QR page, so the Assist panel opens immediately.
+    // The actual attendance action still re-checks the employee from Supabase before recording.
+    let rows=getCachedEmployees().filter(e=>e.active!==false && (Number(e.branch_id)===Number(employeeBranch.id) || e.branch_id===null || e.branch_id===undefined || e.branch_id===''));
+    if(!rows.length){
+      rows=await api('/employees?or=(branch_id.eq.'+Number(employeeBranch.id)+',branch_id.is.null)&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+      setCachedEmployees(rows.map(e=>({id:e.id,employee_code:e.employee_code,full_name:e.full_name,position:e.position,branch_id:e.branch_id,active:true})));
+    }
+    if(!rows.length) throw new Error('No active employees are assigned to this branch.');
+    document.getElementById('assistEmp').innerHTML=rows.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
+    document.getElementById('assistPanel').style.display='block';
+    m.innerHTML='<span class="ok">✅ Supervisor verified. Select the employee and record attendance.</span>';
+  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';}
+}
+async function supervisorAssistRecord(type){
+  const m=document.getElementById('assistMsg');
+  const code=document.getElementById('assistEmp').value;
+  const rows=await api('/employees?employee_code=eq.'+encodeURIComponent(code)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
+  const e=rows[0];
+  if(!e){m.innerHTML='<span class="bad">Employee not found.</span>';return;}
+  if(Number(e.branch_id)!==Number(employeeBranch.id)){m.innerHTML='<span class="bad">Employee is not assigned to this branch.</span>';return;}
+  try{
+    const d=today();
+    const existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(e.id)+'&attendance_date=eq.'+encodeURIComponent(d)+'&select=id,employee_id,branch_id,attendance_date,time_in,time_out');
+    const now=new Date().toISOString();
+    if(type==='in'){
+      if(existing[0]?.time_in){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' already has TIME IN today.</span>';return;}
+      const r=await api('/attendance',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({employee_id:e.id,branch_id:employeeBranch.id,attendance_date:d,time_in:now})});
+      if(!r.ok) throw new Error('Could not save TIME IN ('+r.status+').');
+      m.innerHTML='<span class="ok">✅ TIME IN recorded for '+esc(e.full_name)+'.</span>';
+    }else{
+      if(new Date().getHours()<12){m.innerHTML='<span class="bad">TIME OUT is locked until 12:00 PM.</span>';return;}
+      if(!existing[0]?.time_in){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' has no TIME IN today.</span>';return;}
+      if(existing[0].time_out){m.innerHTML='<span class="bad">❌ '+esc(e.full_name)+' already has TIME OUT today.</span>';return;}
+      const r=await api('/attendance?id=eq.'+encodeURIComponent(existing[0].id),{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({time_out:now})});
+      if(!r.ok) throw new Error('Could not save TIME OUT ('+r.status+').');
+      m.innerHTML='<span class="ok">✅ TIME OUT recorded for '+esc(e.full_name)+'.</span>';
+    }
+  }catch(err){m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';}
+}
+async function supervisorAssistLogout(){
+  try{await sb.auth.signOut();}catch(e){}
+  session=null;
+  document.getElementById('assistPanel').style.display='none';
+  document.getElementById('assistPassword').value='';
+  document.getElementById('assistMsg').innerHTML='<span class="muted">Supervisor session finished.</span>';
+}
+async function employeeSync(){
+  const m=document.getElementById('empMsg');
+  if(!navigator.onLine){m.innerHTML='<span class="bad">Offline. Connect once to refresh the employee list.</span>';return;}
+  // If the QR was opened without a resolved branch, retry the branch lookup from the URL.
+  if(!employeeBranch){
+    try{
+      const token=getBranchToken(), branchId=getBranchId(); let br=[];
+      if(branchId){const r=await publicFetch('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m'); if(r.ok) br=await r.json();}
+      if(!br.length && token){const r=await publicFetch('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m'); if(r.ok) br=await r.json();}
+      if(br[0]){employeeBranch=br[0];localStorage.setItem(BRANCH_CACHE,JSON.stringify(br[0]));}
+    }catch(e){}
+  }
+  if(!employeeBranch){m.innerHTML='<span class="bad">Branch QR could not be verified. Please scan the latest Branch QR from the live HTTPS site.</span>';return;}
+  m.textContent='Refreshing employee list…';
+  try{
+    const r=await publicFetch('/employees?or=(branch_id.eq.'+Number(employeeBranch.id)+',branch_id.is.null)&active=eq.true&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
+    if(!r.ok) throw new Error('Could not load employees ('+r.status+').');
+    const rows=await r.json();
+    if(!rows.length)throw new Error('No active employees are assigned to '+employeeBranch.name+'.');
+    setCachedEmployees(rows.map(e=>({id:e.id,employee_code:e.employee_code,full_name:e.full_name,position:e.position,branch_id:e.branch_id,active:true})));
+    populateEmployeeSelect();
+    document.getElementById('branchLabel').textContent='Branch: '+employeeBranch.name;
+    m.innerHTML='<span class="ok">✅ Employee list refreshed. Select your name.</span>';
+  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';}
+}
+let employeeBusy=false;
+async function registerThisPhone(){
+  if(employeeBusy)return; employeeBusy=true;
+  const code=document.getElementById('empSelect').value,m=document.getElementById('empMsg');
+  if(!code){m.innerHTML='<span class="bad">Select your name first.</span>';employeeBusy=false;return;}
+  if(getDeviceBind()){m.innerHTML='<span class="bad">This phone is already registered to an employee.</span>';employeeBusy=false;return;}
+  const e=getCachedEmployees().find(x=>x.employee_code===code);
+  if(!e){m.innerHTML='<span class="bad">Employee is not available on this phone. Refresh the employee list.</span>';employeeBusy=false;return;}
+  if(!employeeBranch||(e.branch_id!=null && Number(e.branch_id)!==Number(employeeBranch.id))){m.innerHTML='<span class="bad">🚫 This employee is not assigned to this branch.</span>';employeeBusy=false;return;}
+  m.textContent='Checking GPS and registering this phone…';
+  try{
+    await verifyInsideBranch();
+    setDeviceBind({employee_id:e.id,employee_code:e.employee_code,full_name:e.full_name,registeredAt:new Date().toISOString()});
+    populateEmployeeSelect();
+    m.innerHTML='<span class="ok">✅ This phone is now registered to '+esc(e.full_name)+'. Future attendance on this phone will use this employee automatically.</span>';
+  }catch(err){m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';}
+  finally{employeeBusy=false;}
+}
+async function employeeLogin(){
+  if(employeeBusy)return; employeeBusy=true;
+  const code=document.getElementById('empSelect').value,m=document.getElementById('empMsg');
+  if(!code){m.innerHTML='<span class="bad">Select your name first.</span>';employeeBusy=false;return;}
+  const bind=getDeviceBind();
+  if(!bind){m.innerHTML='<span class="bad">This phone is not registered yet. Register it first.</span>';employeeBusy=false;return;}
+  if(bind.employee_code!==code){m.innerHTML='<span class="bad">This phone is registered to another employee.</span>';employeeBusy=false;return;}
+
+  let e=null;
+  // Always get the employee assignment directly from Supabase when online.
+  // NULL branch_id is ANY BRANCH.
+  if(navigator.onLine){
+    try{
+      const q=bind.employee_id
+        ? '/employees?id=eq.'+encodeURIComponent(bind.employee_id)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id'
+        : '/employees?employee_code=eq.'+encodeURIComponent(code)+'&active=eq.true&select=id,employee_code,full_name,position,branch_id';
+      const fresh=await publicFetch(q);
+      const rows=await fresh.json();
+      if(rows[0]) e=rows[0];
+    }catch(err){console.warn('Employee refresh:',err);}
+  }
+  if(!e)e=getCachedEmployees().find(x=>x.employee_code===code);
+  if(!e){m.innerHTML='<span class="bad">Registered employee is not available. Refresh while online.</span>';employeeBusy=false;return;}
+
+  // Only employees with a real branch_id are restricted to that branch.
+  // NULL/empty branch_id means ANY BRANCH.
+  const assignedBranch=(e.branch_id===null||e.branch_id===undefined||e.branch_id==='')?null:Number(e.branch_id);
+  if(assignedBranch!==null && (!employeeBranch || assignedBranch!==Number(employeeBranch.id))){
+    m.innerHTML='<span class="bad">🚫 This registered employee is not assigned to this branch.</span>';
+    employeeBusy=false;return;
+  }
+
+  m.textContent='Checking GPS…';
+  try{
+    await verifyInsideBranch();
+    employeeSession=e;
+    document.getElementById('employeeGate').style.display='none';
+    renderEmployeeApp();
+  }catch(err){
+    m.innerHTML='<span class="bad">❌ '+esc(err.message)+'</span>';
+  }finally{employeeBusy=false;}
+}
+function cachedBranchName(id){try{const x=JSON.parse(localStorage.getItem('bratt_branch_list')||'[]').find(b=>Number(b.id)===Number(id));return x?.name||'another branch'}catch{return 'another branch'}}
+async function cacheBranchList(){if(!navigator.onLine)return;try{const b=await publicFetch('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc').then(r=>r.json());localStorage.setItem('bratt_branch_list',JSON.stringify(b))}catch{}}
+function renderEmployeeApp(){
+  const att=getLocalAtt(); const d=today(); const key=employeeSession.id+'|'+d; const rec=att[key];
+  app.innerHTML='<div class="card center"><h2>📱 '+esc(employeeSession.full_name)+'</h2><p>'+esc(employeeBranch?.name||'Branch')+'</p>'+
+    (rec?.time_in&&!rec?.time_out?'<h2 class="ok">TIME IN: '+new Date(rec.time_in).toLocaleTimeString()+'</h2><button onclick="employeeTimeOut()">TIME OUT</button>':rec?.time_out?'<h2 class="ok">Attendance complete</h2><p>IN: '+new Date(rec.time_in).toLocaleTimeString()+'<br>OUT: '+new Date(rec.time_out).toLocaleTimeString()+'</p>':'<button onclick="employeeTimeIn()">TIME IN</button>')+
+    '<p id="empStatus" class="small muted">'+(navigator.onLine?'Online':'Offline')+' • attendance saves on this phone and syncs automatically when internet returns.'+(getQueue().length?' • <b>'+getQueue().length+' attendance pending sync</b>':'')+'</p><button onclick="employeeLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Log Out</button></div>';
+}
+function employeeLogout(){employeeSession=null;location.reload()}
+async function employeeTimeIn(){
+  const d=today(), key=employeeSession.id+'|'+d, att=getLocalAtt();
+  if(att[key]?.time_in){return renderEmployeeApp()}
+  try{await verifyInsideBranch()}catch(e){document.getElementById('empStatus').innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';return}
+  const now=new Date().toISOString();
+  att[key]={employee_id:employeeSession.id,branch_id:employeeBranch.id,attendance_date:d,time_in:now,time_out:null,attendance_id:null};
+  setLocalAtt(att);
+  enqueue({type:'in',employee_id:employeeSession.id,branch_id:employeeBranch.id,attendance_date:d,time_in:now});
+  await syncQueue();
+  const pending=getQueue().length, syncErr=localStorage.getItem('bratt_last_sync_error');
+  renderEmployeeApp();
+  if(pending){document.getElementById('empStatus').innerHTML='<span class="bad">⚠️ TIME IN is saved on this phone but not yet in the central attendance database. '+esc(syncErr||'Sync pending.')+'</span>';}
+}
+async function employeeTimeOut(){
+  const d=today(), key=employeeSession.id+'|'+d, att=getLocalAtt(), rec=att[key];
+  if(!rec?.time_in)return;
+  try{await verifyInsideBranch()}catch(e){document.getElementById('empStatus').innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';return}
+  const h=new Date().getHours();
+  if(h<12){document.getElementById('empStatus').innerHTML='<span class="bad">TIME OUT is locked until 12:00 PM.</span>';return}
+  if(rec.time_out)return;
+  const now=new Date().toISOString();
+  rec.time_out=now; att[key]=rec; setLocalAtt(att);
+  enqueue({type:'out',employee_id:employeeSession.id,attendance_id:rec.attendance_id||null,branch_id:employeeBranch.id,attendance_date:d,time_out:now});
+  await syncQueue(); renderEmployeeApp();
+}
+function enqueue(x){const q=getQueue();q.push({...x,queue_id:(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()))});setQueue(q)}
+async function syncQueue(){
+  if(!navigator.onLine)return;
+  const q=getQueue(); if(!q.length)return;
+  const remain=[];
+  for(const x of q){
+    try{
+      const local=getLocalAtt(), k=x.employee_id+'|'+x.attendance_date, rec=local[k]||{};
+      const body={
+        p_employee_id:Number(x.employee_id),
+        p_branch_id:Number(x.branch_id),
+        p_attendance_date:x.attendance_date,
+        p_time_in:rec.time_in || x.time_in || null,
+        p_time_out:rec.time_out || x.time_out || null
+      };
+      const r=await publicFetch('/rpc/record_attendance',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Prefer':'return=representation'},
+        body:JSON.stringify(body)
+      });
+      const data=await r.json();
+      const row=Array.isArray(data)?data[0]:data;
+      if(!row?.id)throw new Error('Central database did not return the attendance record ID.');
+      if(local[k]){
+        local[k].attendance_id=row.id;
+        if(row.time_in)local[k].time_in=row.time_in;
+        if(row.time_out)local[k].time_out=row.time_out;
+        setLocalAtt(local);
+      }
+      try{localStorage.removeItem('bratt_last_sync_error')}catch{}
+    }catch(e){
+      remain.push(x);
+      console.warn('Attendance sync failed:',e);
+      try{localStorage.setItem('bratt_last_sync_error',String(e.message||e));}catch{}
+    }
+  }
+  setQueue(remain);
+}
+
+window.addEventListener('online',async()=>{await cacheBranchList();await syncQueue();if(employeeSession)renderEmployeeApp()});
+async function initAuth(){
+  if(isEmployeeMode()){await initEmployeeMode();return;}
+  await ensureSupabase();
+  try{
+    const access=sessionStorage.getItem('kda_access_token');
+    const refresh=sessionStorage.getItem('kda_refresh_token');
+    if(access && refresh) await sb.auth.setSession({access_token:access,refresh_token:refresh});
+  }catch(e){ console.warn('Session restore:',e); }
+  await cacheBranchList();
+  const {data}=await sb.auth.getSession();
+  session=data.session;
+  authRole=session?.user?.user_metadata?.role==='boss'?'boss':'supervisor';
+  renderAuth();
+}
+function renderAuth(){
+  const gate=document.getElementById("authGate");
+  const customize=document.getElementById("customizeBtn");
+  if(session){
+    gate.style.display="none";
+    if(customize) customize.style.display=authRole==='boss'?'none':'';
+    // Owner is strictly read-only; never run the Supervisor daily-rate writeback.
+    if(authRole!=='boss') syncImportedDailyRates();
+  } else {
+    gate.style.display="flex";
+    if(customize) customize.style.display='';
+    stop();
+  }
+}
+let authRole='supervisor';
+
+async function loginAs(requestedRole){
+  const emailEl=requestedRole==='boss'?document.getElementById('ownerEmail'):document.getElementById('supervisorEmail');
+  const passEl=requestedRole==='boss'?document.getElementById('ownerPassword'):document.getElementById('supervisorPassword');
+  const m=document.getElementById(requestedRole==='boss'?'ownerMsg':'supervisorMsg');
+  const email=emailEl.value.trim(), password=passEl.value;
+  if(!email||!password){m.innerHTML='<span class="bad">Enter email and password.</span>';return;}
+  m.textContent='Signing in…';
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    if(error){
+      const msg=String(error.message||'');
+      if(/email not confirmed/i.test(msg)){
+        m.innerHTML='<span class="bad">❌ Email not confirmed.</span><br><span class="muted small">Confirm the email first, then sign in again.</span>';
+        return;
+      }
+      m.innerHTML='<span class="bad">❌ '+esc(msg)+'</span>';
+      return;
+    }
+    // Read the confirmed session directly after sign-in.
+    const fresh=await sb.auth.getSession();
+    session=fresh?.data?.session || data.session;
+    const signedInRole=session?.user?.user_metadata?.role||'supervisor';
+    if((requestedRole==='boss' && signedInRole!=='boss') || (requestedRole==='supervisor' && signedInRole==='boss')){
+      const expected=requestedRole==='boss'?'Owner / Employer':'Supervisor';
+      await sb.auth.signOut();
+      session=null;
+      authRole=requestedRole;
+      m.innerHTML='<span class="bad">❌ Wrong account type. Please use the '+expected+' account.</span>';
+      return;
+    }
+    authRole=signedInRole==='boss'?'boss':'supervisor';
+    renderAuth();
+    // Force the login gate closed before loading the first page.
+    const gate=document.getElementById('authGate');
+    if(gate) gate.style.display='none';
+    await page('dashboard');
+  }catch(e){
+    m.innerHTML='<span class="bad">❌ '+esc(e.message||e)+'</span>';
+  }
+}
+
+async function signupAsSupervisor(){
+  const email=document.getElementById('supervisorEmail').value.trim();
+  const password=document.getElementById('supervisorPassword').value;
+  const m=document.getElementById('supervisorMsg');
+  if(!email||password.length<6){m.innerHTML='<span class="bad">Enter an email and a password with at least 6 characters.</span>';return;}
+  m.textContent='Creating account…';
+  const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'supervisor'}}});
+  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
+  if(data.session){session=data.session;authRole='supervisor';renderAuth();await page('dashboard');}
+  else m.innerHTML='<span class="ok">✅ Account created. Check your email for the confirmation link, then sign in.</span>';
+}
+
+async function resendSupervisorConfirmation(){
+  const email=document.getElementById('supervisorEmail').value.trim();
+  const m=document.getElementById('supervisorMsg');
+  if(!email){m.innerHTML='<span class="bad">Enter your supervisor email first.</span>';return;}
+  m.textContent='Sending confirmation email…';
+  const {error}=await sb.auth.resend({type:'signup',email});
+  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
+  m.innerHTML='<span class="ok">✅ Confirmation email sent. Check Inbox and Spam/Junk.</span>';
+}
+
+async function logout(){await sb.auth.signOut();session=null;authRole='supervisor';renderAuth();}
+
+async function api(path, opts={}){
+  const headers = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": "Bearer " + (session?.access_token || SUPABASE_KEY),
+    "Content-Type":"application/json",
+    "Accept":"application/json",
+    ...(opts.headers||{})
+  };
+  const r=await fetch(API+path,{...opts,headers});
+  const txt=await r.text();
+  let body; try{body=txt?JSON.parse(txt):null}catch{body=txt}
+  if(!r.ok) throw new Error((body&&body.message)||body?.hint||body?.details||("HTTP "+r.status));
+  return body;
+}
+
+function localDateString(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;} function localMonthString(d=new Date()){return localDateString(d).slice(0,7);} const today=()=>localDateString();
+
+async function loadBranches(){
+  // Branch names/locations are readable with the public key so the Back Office
+  // does not get blocked by an authenticated SELECT/RLS policy on branches.
+  const r=await publicFetch("/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc");
+  if(!r.ok) throw new Error("Could not load branches from Supabase (HTTP "+r.status+").");
+  branches=await r.json();
+  if(!Array.isArray(branches)||!branches.length) throw new Error("No branches found in Supabase.");
+}
+function branchName(id){if(id===null||id===undefined||id==="")return "ANY BRANCH";return branches.find(b=>String(b.id)===String(id))?.name||"Unknown";}
+
+async function page(x){
+  if(!session){renderAuth();return;}
+  stop();
+  app.innerHTML='<div class="card">Loading…</div>';
+  try{await loadBranches(); await ({dashboard,employees,branchqrs,attendance,summary}[x])();}
+  catch(e){app.innerHTML='<div class="card"><span class="bad">❌ '+esc(e.message)+'</span><p class="muted">Check that your Supabase tables, RLS policies, Project URL and publishable key are correct.</p></div>';}
+}
+
+async function dashboard(){
+  const d=today();
+  const r=await api("/attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&attendance_date=eq."+d+"&order=time_in.desc");
+  const em=await api("/employees?select=id&active=eq.true");
+  app.innerHTML=`<div class="card"><h2>Dashboard</h2><div class="grid">
+  <div class="card">Active Employees<div class="stat">${em.length}</div></div>
+  <div class="card">Attendance Today<div class="stat">${r.length}</div></div>
+  <div class="card">Timed In<div class="stat">${r.filter(x=>x.time_in&&!x.time_out).length}</div></div>
+  <div class="card">Completed<div class="stat">${r.filter(x=>x.time_in&&x.time_out).length}</div></div>
+  </div></div>
+  <div class="card"><h3>Connection</h3><span class="ok">● Connected to central Supabase database</span><p class="muted small">All branch devices using this online version read and write the same attendance database.</p></div>`;
+}
+
+async function employees(){
+  const em=await api("/employees?select=id,employee_code,full_name,position,branch_id,daily_rate,qr_token,active&order=id.asc");
+  const owner=authRole==='boss';
+  const addBlock=owner?'':`<div class="card"><h2>Add Employee</h2>
+  <div class="grid"><input id="ename" placeholder="Full name"><input id="epos" placeholder="Position">
+  <select id="ebr"><option value="">ANY BRANCH</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("")}</select>
+  <input id="erate" type="number" min="0" step="0.01" placeholder="Daily Rate (₱)"></div>
+  <p><button onclick="addEmployee()">Add Employee</button></p>
+  <p class="muted small">Employees register their own phone biometric/passkey from the Branch QR page. No employee PIN is stored.</p></div>`;
+  app.innerHTML=`<div class="card">${addBlock}
+  <div class="card"><h2>Employees</h2>${owner?'<p class="muted small">👑 Owner / Employer — View Only</p>':''}<table><tr><th>ID</th><th>Name</th><th>Branch</th><th>Daily Rate</th><th>Status</th><th></th></tr>
+  ${em.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(branchName(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${e.active?"Active":"Inactive"}</td><td>${owner?'':`<button onclick="editEmployee(${e.id})">Edit</button>`}</td></tr>`).join("")}
+  </table></div></div>`;
+}
+function token(){return crypto.randomUUID ? crypto.randomUUID().replaceAll("-","") : Math.random().toString(36).slice(2)+Date.now();}
+async function addEmployee(){
+  if(authRole==='boss') return alert('Owner account is view-only.');
+  const name=ename.value.trim(); if(!name)return alert("Enter employee name");
+  const existing=await api("/employees?select=id"); const code="EMP-"+String(existing.length+1).padStart(4,"0");
+  try{
+    await api("/employees",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({employee_code:code,full_name:name,position:epos.value.trim(),branch_id:ebr.value===""?null:Number(ebr.value),daily_rate:Number(document.getElementById("erate").value||0),qr_token:token(),active:true})});
+    await employees();
+  }catch(e){alert("Could not add employee: "+e.message);}
+}
+async function editEmployee(id){
+  try{
+    const rows=await api("/employees?id=eq."+id+"&select=id,employee_code,full_name,position,branch_id,daily_rate,active,qr_token");
+    const e=rows[0]; if(!e) return alert("Employee not found.");
+    app.innerHTML=`<div class="card"><h2>Edit Employee</h2>
+      <p class="muted small">Employee ID: ${esc(e.employee_code)}. The existing QR code will stay the same.</p>
+      <div class="grid">
+        <input id="editName" value="${esc(e.full_name)}" placeholder="Full name">
+        <input id="editPos" value="${esc(e.position||"")}" placeholder="Position">
+        <select id="editBranch"><option value="" ${e.branch_id==null?"selected":""}>ANY BRANCH</option>${branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(e.branch_id)?"selected":""}>${esc(b.name)}</option>`).join("")}</select>
+        <input id="editRate" type="number" min="0" step="0.01" value="${Number(e.daily_rate||0)}" placeholder="Daily Rate (₱)">
+        <select id="editActive">
+          <option value="true" ${e.active?"selected":""}>Active</option>
+          <option value="false" ${!e.active?"selected":""}>Inactive</option>
+        </select>
+      </div>
+      <p>
+        <button onclick="saveEmployee(${e.id})">Save Changes</button>
+        <button onclick="employees()">Cancel</button>
+      </p>
+    </div>`;
+  }catch(err){alert("Could not load employee: "+err.message);}
+}
+async function saveEmployee(id){
+  if(authRole==='boss') return alert('Owner account is view-only.');
+  const name=document.getElementById("editName").value.trim();
+  const pos=document.getElementById("editPos").value.trim();
+  const branchValue=document.getElementById("editBranch").value; const branchId=branchValue===""?null:Number(branchValue);
+  const active=document.getElementById("editActive").value==="true";
+  const dailyRate=Math.max(0,Number(document.getElementById("editRate").value||0));
+  if(!name) return alert("Enter employee name");
+  try{
+    const updated = await api("/employees?id=eq."+id,{
+      method:"PATCH",
+      headers:{"Prefer":"return=representation"},
+      body:JSON.stringify({full_name:name,position:pos,branch_id:branchId,daily_rate:dailyRate,active})
+    });
+    if(!updated || !updated.length) throw new Error("No employee was updated. Please check the Supabase UPDATE policy.");
+    alert("Employee updated successfully.");
+    await employees();
+  }catch(err){
+    alert("Could not update employee: "+err.message+"\\n\\nIf this says permission/RLS, we need to enable the employees UPDATE policy in Supabase.");
+  }
+}
+
+async function branchqrs(){
+  await ensureQRCode();
+  const rows=await api('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc');
+  app.innerHTML='<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">'+rows.map(b=>'<div class="card center"><h3>'+esc(b.name)+'</h3><div id="bqr'+b.id+'" style="display:flex;justify-content:center"></div><p class="small "'+(b.latitude!=null?'ok':'bad')+'>'+(b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set')+'</p><button onclick="printBranchQR('+b.id+')">Print QR</button>'+(authRole==='boss'?'':' <button onclick="setBranchLocation('+b.id+')" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button></div>').join('')+'</div></div>';
+  rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname.replace(/[^/]*$/,'attendance.html')+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
+}
+async function setBranchLocation(id){
+  if(authRole==='boss') return alert('Owner account is view-only.');
+  const b=branches.find(x=>Number(x.id)===Number(id));
+  if(!b)return;
+  if(!window.isSecureContext && location.hostname!=='localhost')return alert('Location/GPS needs HTTPS. Open the HTTPS system link, not a local HTML file.');
+  if(!navigator.geolocation)return alert('This device/browser does not support GPS location.');
+  if(!confirm('Set the current GPS location as the official location for '+b.name+'?\\n\\nStand physically inside the branch before continuing.'))return;
+  const btns=[...document.querySelectorAll('button')];
+  btns.forEach(x=>{if(x.textContent.includes('Set Location')){x.disabled=true;x.textContent='Getting Location…';}});
+  const getPos=(high,timeout)=>new Promise((resolve,reject)=>{
+    navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:high,timeout,maximumAge:high?0:30000});
+  });
+  try{
+    let p;
+    try{
+      p=await getPos(true,60000);
+    }catch(e){
+      if(e.code!==3 && e.code!==2) throw e;
+      p=await getPos(false,30000);
+    }
+    const acc=Number(p.coords.accuracy||9999);
+    if(!Number.isFinite(p.coords.latitude)||!Number.isFinite(p.coords.longitude))throw new Error('GPS returned an invalid location.');
+    if(acc>150 && !confirm('GPS accuracy is about '+Math.round(acc)+' m. Save this location anyway?\\n\\nFor best accuracy, make sure Location/GPS is ON and stand in an open area.'))return;
+    const radius=prompt('Allowed radius in meters (recommended 50–100):', String(b.radius_m||75));
+    if(radius===null)return;
+    const radiusNum=Number(String(radius).trim());
+    if(!Number.isFinite(radiusNum) || radiusNum<10 || radiusNum>1000)return alert('Radius must be between 10 and 1000 meters.');
+    const updated=await api('/branches?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({latitude:p.coords.latitude,longitude:p.coords.longitude,radius_m:radiusNum})});
+    if(!updated || !updated.length)throw new Error('The branch location was not saved. Please try again.');
+    alert('✅ Branch location saved.\\nGPS accuracy: about '+Math.round(acc)+' m\\nAllowed radius: '+radiusNum+' m');
+    await branchqrs();
+  }catch(e){
+    let msg=e.message||'Could not save location.';
+    if(e.code===1)msg='Location permission was denied. Turn on Location/GPS and allow this website to use your location, then try again.';
+    if(e.code===2)msg='This device could not get a location fix. Make sure Location/GPS is ON and try again from a phone near the branch.';
+    if(e.code===3)msg='GPS timed out. Make sure Location/GPS is ON, keep the phone near a window or outdoors for a moment, then try again.';
+    alert('❌ '+msg);
+  }finally{
+    btns.forEach(x=>{if(x.textContent.includes('Getting Location…')){x.disabled=false;x.textContent='Set Location';}});
+  }
+}
+function printBranchQR(id){const card=document.getElementById('bqr'+id)?.parentElement;if(!card)return;const w=window.open('','_blank');w.document.write('<html><head><title>Branch QR</title></head><body>'+card.outerHTML+'</body></html>');w.document.close();w.print()}
+
+async function summary(){
+  const now=new Date();
+  const ym=new URLSearchParams(location.search).get('month') || localMonthString(now);
+  const monthVal=/^\d{4}-\d{2}$/.test(ym)?ym:localMonthString(now);
+  const [year,month]=monthVal.split('-').map(Number);
+  const start=monthVal+'-01';
+  const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
+  const end=monthVal+'-'+String(lastDay).padStart(2,'0');
+  const [em,att]=await Promise.all([
+    api('/employees?select=id,employee_code,full_name,position,branch_id,daily_rate,active&order=full_name.asc'),
+    api('/attendance?attendance_date=gte.'+start+'&attendance_date=lte.'+end+'&select=employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.asc')
+  ]);
+  const branchFilter=document.getElementById('summaryBranch')?.value||'all';
+  const employees=em.filter(e=>branchFilter==='all'||String(e.branch_id)===String(branchFilter));
+  const byEmp={};
+  att.forEach(a=>{(byEmp[a.employee_id]??=[]).push(a)});
+  // Payroll schedule follows the actual calendar days of the selected month.
+  // Sunday is included because the payroll rule counts every calendar day.
+  const scheduledDates=Array.from({length:31},(_,i)=>monthVal+'-'+String(i+1).padStart(2,'0'));
+  const rows=employees.map(e=>{
+    const records=byEmp[e.id]||[];
+    const presentDates=new Set(records.filter(a=>a.time_in).map(a=>a.attendance_date));
+    const present=scheduledDates.filter(d=>presentDates.has(d)).length;
+    const absent=Math.max(0,31-present);
+    let hours=0;
+    records.forEach(a=>{if(a.time_in&&a.time_out){hours+=(new Date(a.time_out)-new Date(a.time_in))/3600000;}});
+    const dailyRate=Number(e.daily_rate||0);
+    let halfdays=0;
+    records.forEach(a=>{
+      if(!a.time_in) return;
+      const inHour=new Date(a.time_in).getHours();
+      const outHour=a.time_out ? new Date(a.time_out).getHours() : null;
+      if(inHour>=12 || outHour===13) halfdays++;
+    });
+    halfdays=Math.min(halfdays,present);
+    const fullDays=present-halfdays;
+    const presentEquivalent=fullDays+(halfdays*0.5);
+    const todayDate=localDateString();
+    const currentMonth=todayDate.slice(0,7);
+    const elapsedDays=monthVal<currentMonth ? 31 : monthVal>currentMonth ? 0 : Number(todayDate.slice(8));
+    const absentEquivalent=Math.max(0,elapsedDays-presentEquivalent);
+    const estimatedPay=presentEquivalent*dailyRate;
+    const dailyStatus={};
+    scheduledDates.forEach(d=>{
+      if(d>todayDate){ dailyStatus[d]='future'; return; }
+      const rec=records.find(a=>a.attendance_date===d && a.time_in);
+      if(!rec) dailyStatus[d]='absent';
+      else{
+        const inHour=new Date(rec.time_in).getHours();
+        const outHour=rec.time_out ? new Date(rec.time_out).getHours() : null;
+        dailyStatus[d]=(inHour>=12 || outHour===13)?'half':'present';
+      }
+    });
+    return {e,present:presentEquivalent,absent:absentEquivalent,hours,dailyRate,estimatedPay,dailyStatus};
+  });
+  const totalPresent=rows.reduce((n,r)=>n+r.present,0), totalAbsent=rows.reduce((n,r)=>n+r.absent,0), totalPay=rows.reduce((n,r)=>n+r.estimatedPay,0);
+  app.innerHTML=`<div class="card"><h2>📊 Monthly Attendance Summary</h2>
+    <div class="grid"><input id="summaryMonth" type="month" value="${monthVal}" onchange="loadSummaryMonth()">
+      <select id="summaryBranch" onchange="summary()"><option value="all">All branches</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select>
+    </div>
+    <p class="muted small">Monthly payroll basis: 31 scheduled days. ✓ = Full Day, ½ = Halfday, ✗ = Absent. Present uses day-equivalent counting: Full Day = 1, Halfday = 0.5. Summary figures are locked/read-only.</p>
+    <p><button onclick="summaryCSV()">Export Monthly CSV</button></p>
+    <div class="grid"><div class="card">Scheduled days<div class="stat">${scheduledDates.length}</div></div><div class="card">Present<div class="stat">${fmtDays(totalPresent)}</div></div><div class="card">Absent<div class="stat">${fmtDays(totalAbsent)}</div></div><div class="card">Estimated payroll<div class="stat">₱${totalPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
+    <div id="monthlyDateFloat" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:#f7f8fb;border-bottom:2px solid #d0d5dd;box-shadow:0 2px 8px rgba(0,0,0,.12);overflow:hidden"><div id="monthlyDateFloatInner" style="display:flex;min-width:max-content"></div></div><div style="overflow-x:auto;overflow-y:visible"><table style="display:table;border-collapse:separate;border-spacing:0"><thead style="position:sticky;top:0;z-index:100;background:#f7f8fb"><tr><th style="position:sticky;left:0;z-index:60;background:#f7f8fb;min-width:170px;width:170px">Employee</th><th style="position:sticky;left:170px;z-index:60;background:#f7f8fb;min-width:150px;width:150px">Branch</th><th style="position:sticky;left:320px;z-index:60;background:#f7f8fb;min-width:105px;width:105px">Daily Rate</th>${scheduledDates.map(d=>`<th style="background:#f7f8fb;border-bottom:2px solid #d0d5dd">${Number(d.slice(8))}</th>`).join('')}<th style="background:#f7f8fb">Present</th><th style="background:#f7f8fb">Absent</th><th style="background:#f7f8fb">Estimated Pay</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td style="position:sticky;left:0;z-index:50;background:#fff;min-width:170px;width:170px"><b>${esc(r.e.full_name)}</b><br><span class="muted small">${esc(r.e.employee_code)}</span></td><td style="position:sticky;left:170px;z-index:49;background:#fff;min-width:150px;width:150px">${esc(branchName(r.e.branch_id))}</td><td style="position:sticky;left:320px;z-index:48;background:#fff;min-width:105px;width:105px;font-weight:700">₱${r.dailyRate.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>${scheduledDates.map(d=>`<td class="${r.dailyStatus[d]==='present'?'ok':r.dailyStatus[d]==='half'?'':'bad'}" style="text-align:center;font-weight:700">${r.dailyStatus[d]==='present'?'✓':r.dailyStatus[d]==='half'?'½':r.dailyStatus[d]==='future'?'—':'✗'}</td>`).join('')}<td class="ok">${fmtDays(r.present)}</td><td class="bad">${fmtDays(r.absent)}</td><td><b>₱${r.estimatedPay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}</b></td></tr>`).join('')}</tbody></table></div>
+  </div>`;
+  setTimeout(setupMonthlyDateFloat,50);
+}
+function fmtDays(n){return Number.isInteger(Number(n))?String(Number(n)):Number(n).toFixed(1);}function setupMonthlyDateFloat(){
+  const wrap=document.querySelector('#monthlyDateFloat')?.nextElementSibling;
+  const table=wrap?.querySelector('table');
+  const bar=document.getElementById('monthlyDateFloat');
+  const inner=document.getElementById('monthlyDateFloatInner');
+  if(!table||!bar||!inner)return;
+  const ths=[...table.querySelectorAll('thead th')];
+  if(ths.length<7)return;
+  inner.innerHTML='';
+  ths.forEach(th=>{
+    const x=document.createElement('div');
+    const w=th.getBoundingClientRect().width;
+    x.textContent=th.textContent.trim();
+    x.style.cssText='box-sizing:border-box;padding:11px 10px;border-right:1px solid #e5e7eb;text-align:center;font-size:12px;font-weight:800;color:#475467;white-space:normal;line-height:1.1;flex:0 0 '+w+'px;background:#f7f8fb;border-bottom:2px solid #d0d5dd';
+    inner.appendChild(x);
+  });
+  const update=()=>{
+    const r=table.getBoundingClientRect();
+    const headerH=ths[0].getBoundingClientRect().height;
+    bar.style.height=headerH+'px';
+    bar.style.display=(r.top<0&&r.bottom>headerH)?'block':'none';
+    inner.style.transform='translateX('+r.left+'px)';
+  };
+  window.removeEventListener('scroll',update);
+  window.addEventListener('scroll',update,{passive:true});
+  window.removeEventListener('resize',update);
+  window.addEventListener('resize',update);
+  update();
+}
+function loadSummaryMonth(){
+  const v=document.getElementById('summaryMonth')?.value;if(v)history.replaceState(null,'','?month='+encodeURIComponent(v));summary();
+}
+async function summaryCSV(){
+  const month=document.getElementById('summaryMonth')?.value||localMonthString();
+  const branch=document.getElementById('summaryBranch')?.value||'all';
+  const qs='?month='+encodeURIComponent(month)+'&branch='+encodeURIComponent(branch);
+  // Rebuild the same calculation in a compact way by reading the rendered table.
+  const table=app.querySelector('table'); if(!table)return;
+  const rows=[...table.querySelectorAll('tr')].map(tr=>[...tr.children].map(td=>td.innerText.replace(/\n/g,' ').trim()));
+  // Total Hours intentionally excluded from Monthly Summary export.
+  const blob=new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='monthly-attendance-'+month+'.csv';a.click();URL.revokeObjectURL(a.href);
+}
+
+async function attendance(){
+  const now=new Date();
+  const defaultMonth=localMonthString(now);
+  const params=new URLSearchParams(location.search);
+  const selected=params.get('attendanceMonth');
+  const monthVal=/^\\d{4}-\\d{2}$/.test(selected||'')?selected:defaultMonth;
+  const branchVal=params.get('attendanceBranch')||'all';
+  const [year,month]=monthVal.split('-').map(Number);
+  const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
+  const start=monthVal+'-01';
+  const end=monthVal+'-'+String(lastDay).padStart(2,'0');
+  const r=await api('/attendance?attendance_date=gte.'+start+'&attendance_date=lte.'+end+'&select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc,time_in.desc&limit=5000');
+  const em=await api('/employees?select=id,employee_code,full_name');
+  const emp=id=>em.find(e=>e.id===id)||null;
+  const filtered=branchVal==='all'?r:r.filter(x=>String(x.branch_id)===String(branchVal));
+  const owner=authRole==='boss';
+  app.innerHTML='<div class="card"><h2>Attendance Log</h2>'+
+  (owner?'<p class="muted small">👑 Owner / Employer — View Only</p>':'')+
+  '<div class="grid"><label class="small"><b>Month</b><input id="attendanceMonth" type="month" value="'+monthVal+'" onchange="loadAttendanceMonth()" style="width:100%;margin-top:5px"></label>'+
+  '<label class="small"><b>Branch</b><select id="attendanceBranch" onchange="loadAttendanceBranch()" style="width:100%;margin-top:5px"><option value="all" '+(branchVal==='all'?'selected':'')+'>All Branches</option>'+branches.map(b=>'<option value="'+b.id+'" '+(String(b.id)===String(branchVal)?'selected':'')+'>'+esc(b.name)+'</option>').join('')+'</select></label></div>'+
+  '<p class="muted small">Attendance records are permanently saved in the central database. Select a month and branch to view the saved records.</p>'+
+  (owner?'':'<div class="card" style="margin-top:14px;border:2px solid #ead8da;background:#fffafa"><h3>📝 Manual Attendance — Supervisor</h3><p class="muted small">Para sa employee nga nakalimot ug TIME IN/OUT. Pili-a ang employee, date, ug attendance type.</p><div class="grid"><label class="small"><b>Branch</b><select id="manualBranch" onchange="loadManualEmployees()" style="width:100%;margin-top:5px"><option value="all">All Branches</option>'+branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+'</option>').join('')+'</select></label><label class="small"><b>Employee</b><select id="manualEmp" style="width:100%;margin-top:5px"></select></label><label class="small"><b>Date</b><input id="manualDate" type="date" value="'+localDateString()+'" style="width:100%;margin-top:5px"></label><label class="small"><b>Type</b><select id="manualType" onchange="manualTypeChanged()" style="width:100%;margin-top:5px"><option value="full">FULL DAY</option><option value="half">HALF DAY</option></select></label><label class="small"><b>Time In</b><input id="manualIn" type="time" value="08:00" style="width:100%;margin-top:5px"></label><label class="small"><b>Time Out</b><input id="manualOut" type="time" value="17:00" style="width:100%;margin-top:5px"></label></div><button onclick="saveManualAttendance()">💾 Save Manual Attendance</button><span id="manualMsg" class="small" style="margin-left:10px"></span></div>')+
+  '<button onclick="csv()">Export '+monthVal+(branchVal==='all'?'':' '+esc(branchName(branchVal)))+' CSV</button>'+
+  '<table><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th>'+(owner?'':'<th>ACTION</th>')+'</tr>'+
+  filtered.map(x=>{const e=emp(x.employee_id);return '<tr><td>'+esc(x.attendance_date)+'</td><td>'+esc(e?.employee_code||'Unknown')+'</td><td>'+esc(e?.full_name||'Unknown')+'</td><td>'+esc(branchName(x.branch_id))+'</td><td>'+(x.time_in?new Date(x.time_in).toLocaleTimeString():'—')+'</td><td>'+(x.time_out?new Date(x.time_out).toLocaleTimeString():'—')+'</td>'+(owner?'':'<td><button onclick="deleteAttendance(\\''+esc(x.id)+'\\')" style="background:#fff;color:#b00020;border:1px solid #d66;padding:6px 10px">Delete</button></td>')+'</tr>'}).join('')+
+  '</table><p class="muted small">Showing '+filtered.length+' attendance record(s).</p></div>';
+  if(!owner) loadManualEmployees();
+}
+async function loadManualEmployees(){
+ const sel=document.getElementById('manualEmp'); if(!sel)return;
+ const branch=document.getElementById('manualBranch')?.value||'all';
+ try{
+  const rows=await api('/employees?active=eq.true&select=id,employee_code,full_name,branch_id&order=full_name.asc');
+  // Employees with no assigned branch are the Any Branch staff.
+  // When a real branch is selected, include them so the supervisor can record
+  // the actual branch where they worked today.
+  const filtered=branch==='all'?rows:rows.filter(e=>String(e.branch_id)===String(branch)||e.branch_id==null);
+  sel.innerHTML=filtered.length?filtered.map(e=>{
+    const any=e.branch_id==null?' — ANY BRANCH':'';
+    return '<option value="'+esc(e.id)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+any+'</option>';
+  }).join(''):'<option value="">No active employees in this branch</option>';
+ }catch(e){sel.innerHTML='<option value="">Could not load employees</option>';}
+}
+function manualTypeChanged(){const t=document.getElementById('manualType')?.value;if(t==='half'){manualIn.value='08:00';manualOut.value='13:00'}else{manualIn.value='08:00';manualOut.value='17:00'}}
+function manualDateTime(date,time){return new Date(date+'T'+time+':00').toISOString()}
+async function saveManualAttendance(){
+ if(authRole==='boss') return alert('Owner account is view-only.');
+ const m=document.getElementById('manualMsg'),empId=document.getElementById('manualEmp')?.value,date=document.getElementById('manualDate')?.value,type=document.getElementById('manualType')?.value,tin=document.getElementById('manualIn')?.value,tout=document.getElementById('manualOut')?.value,selectedBranch=document.getElementById('manualBranch')?.value||'all';
+ if(!empId||!date||!tin||!tout){m.innerHTML='<span class="bad">Complete all fields.</span>';return}
+ if(tout<=tin){m.innerHTML='<span class="bad">TIME OUT must be later than TIME IN.</span>';return}
+ if(!confirm('Save manual '+(type==='half'?'HALF DAY':'FULL DAY')+' attendance for this employee?'))return;
+ m.textContent='Saving…';
+ try{
+  const rows=await api('/employees?id=eq.'+encodeURIComponent(empId)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
+  const e=rows[0]; if(!e)throw new Error('Employee not found.');
+  // Any Branch employees have branch_id = null. For manual attendance,
+  // require the supervisor to choose the actual branch where they worked.
+  let attendanceBranch=e.branch_id;
+  if(attendanceBranch==null){
+    if(selectedBranch==='all') throw new Error('For an ANY BRANCH employee, please select the actual branch first.');
+    attendanceBranch=selectedBranch;
+  }
+  const existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(empId)+'&attendance_date=eq.'+encodeURIComponent(date)+'&select=id');
+  const payload={employee_id:e.id,branch_id:attendanceBranch,attendance_date:date,time_in:manualDateTime(date,tin),time_out:manualDateTime(date,tout)};
+  if(existing[0]) await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({branch_id:attendanceBranch,time_in:payload.time_in,time_out:payload.time_out})});
+  else await api('/attendance',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});
+  m.innerHTML='<span class="ok">✅ Manual attendance saved for '+esc(e.full_name)+'.</span>';
+  alert('✅ MANUAL ATTENDANCE SAVED\n'+e.full_name+'\n'+date+'\n'+(type==='half'?'HALF DAY':'FULL DAY'));
+  await attendance();
+ }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
+}
+async function deleteAttendance(id){
+  if(authRole==='boss') return alert('Owner account is view-only.');
+  if(!id)return;
+  if(!confirm('Delete this attendance record? This cannot be undone.'))return;
+  try{
+    await api('/attendance?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    await attendance();
+  }catch(e){
+    alert('Delete failed: '+e.message);
+  }
+}
+function loadAttendanceMonth(){
+  const v=document.getElementById('attendanceMonth')?.value;
+  const b=document.getElementById('attendanceBranch')?.value||new URLSearchParams(location.search).get('attendanceBranch')||'all';
+  const qs=new URLSearchParams(); if(v)qs.set('attendanceMonth',v); if(b&&b!=='all')qs.set('attendanceBranch',b);
+  history.replaceState(null,'','?'+qs.toString());
+  attendance();
+}
+function loadAttendanceBranch(){
+  const m=document.getElementById('attendanceMonth')?.value||localMonthString();
+  const b=document.getElementById('attendanceBranch')?.value||'all';
+  const qs=new URLSearchParams(); qs.set('attendanceMonth',m); if(b!=='all')qs.set('attendanceBranch',b);
+  history.replaceState(null,'','?'+qs.toString());
+  attendance();
+}
+async function csv(){
+  const month=document.getElementById('attendanceMonth')?.value||localMonthString();
+  const branch=document.getElementById('attendanceBranch')?.value||'all';
+  const [year,mon]=month.split('-').map(Number);
+  const lastDay=new Date(Date.UTC(year,mon,0)).getUTCDate();
+  const start=month+'-01', end=month+'-'+String(lastDay).padStart(2,'0');
+  const r=await api('/attendance?attendance_date=gte.'+start+'&attendance_date=lte.'+end+'&select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc&limit=5000');
+  const filtered=branch==='all'?r:r.filter(x=>String(x.branch_id)===String(branch));
+  const em=await api('/employees?select=id,employee_code,full_name');
+  const emp=id=>em.find(e=>e.id===id)||null;
+  const rows=[['DATE','EMP ID','NAME','BRANCH','TIME IN','TIME OUT'],...filtered.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||'Unknown',e?.full_name||'Unknown',branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():'',x.time_out?new Date(x.time_out).toLocaleString():'']})];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\\n')],{type:'text/csv'}));a.download='attendance-'+month+(branch==='all'?'':'-'+String(branchName(branch)).replace(/[^a-z0-9]+/gi,'-'))+'.csv';a.click();
+}
+try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v=9').then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); initAuth();
+</script>
+</body>
+</html>
