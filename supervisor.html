@@ -249,7 +249,18 @@ async function loadManualAttendancePage(){
   const timeIn=document.getElementById("manualTimeIn");
   const timeOut=document.getElementById("manualTimeOut");
   const save=document.getElementById("manualSave");
-  branch.innerHTML='<option value="">Select Branch</option>'+attendanceBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
+  try{
+    if(!attendanceBranches.length){
+      const {data,error}=await sb.from("branches").select("id,name").order("name");
+      if(error) throw error;
+      attendanceBranches=data||[];
+    }
+    branch.innerHTML='<option value="">Select Branch</option>'+attendanceBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
+  }catch(e){
+    branch.innerHTML='<option value="">Could not load branches</option>';
+    setManualMsg("Could not load branches: "+(e?.message||e),false);
+    return;
+  }
   date.value=phDate();
   branch.onchange=loadManualEmployeesPage;
   date.onchange=loadManualExisting;
