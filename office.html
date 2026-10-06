@@ -44,7 +44,8 @@ window.quickLogin=async function(role){
     authRole=actual==='boss'?'boss':'supervisor';
     if(m)m.innerHTML='<span class="ok">✅ Login successful. Loading Back Office…</span>';
     const gate=document.getElementById('authGate');
-    if(gate) gate.style.display='none';
+    if(gate){ gate.style.display='none'; gate.style.pointerEvents='none'; }
+    document.querySelectorAll('nav button').forEach(b=>{b.style.pointerEvents='auto';b.disabled=false;});
     try{ await cacheBranchList(); }catch(_){}
     try{ if(authRole!=='boss') syncImportedDailyRates(); }catch(_){}
   }catch(e){
@@ -68,7 +69,7 @@ body{font-family:"Book Antiqua",Palatino,"Palatino Linotype",serif;margin:0;back
 header{background:linear-gradient(135deg,#8d1023 0%,#b51f32 65%,#d02d42 100%);color:#fff;padding:22px 20px;box-shadow:0 5px 20px rgba(17,26,43,.18);position:relative;overflow:hidden}
 header:after{content:"";position:absolute;width:180px;height:180px;border:1px solid rgba(243,213,138,.2);border-radius:50%;right:-55px;top:-85px}
 header h1,header h2,header h3{margin:0}
-nav{background:rgba(255,255,255,.94);backdrop-filter:blur(12px);padding:11px 14px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);box-shadow:0 4px 16px rgba(23,32,51,.05)}
+nav{position:relative;z-index:20000;pointer-events:auto;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);padding:11px 14px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);box-shadow:0 4px 16px rgba(23,32,51,.05)}
 button,input,select{padding:10px 12px;border:1px solid #d7dce5;border-radius:10px;font:inherit;transition:.18s ease}
 button{background:var(--ink);color:#fff;cursor:pointer;font-weight:600;box-shadow:0 2px 5px rgba(23,32,51,.08)}
 button:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(23,32,51,.12)}
@@ -90,7 +91,7 @@ tr:hover td{background:#fbfcfe}
 .notice{padding:12px 14px;border-radius:10px;background:#fff8e8;border:1px solid #f4dfad;margin-bottom:12px}
 .login{width:min(430px,100%);background:#fff;padding:26px;border-radius:18px;border:1px solid var(--line);box-shadow:0 20px 50px rgba(23,32,51,.16)}
 .login h2{letter-spacing:-.3px}
-#authGate{position:fixed;inset:0;background:linear-gradient(135deg,#eef2f7,#f8fafc);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+#authGate{pointer-events:auto;position:fixed;inset:0;background:linear-gradient(135deg,#eef2f7,#f8fafc);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
 #employeeGate{background:linear-gradient(135deg,#eef2f7,#f8fafc)!important}
 .logout{float:right;background:#fff;color:var(--ink);border:1px solid #ccd3df}
 .authmsg{margin-top:12px;min-height:20px}
