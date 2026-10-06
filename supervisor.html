@@ -254,7 +254,7 @@ async function loadManualEmployeesPage(){
   const branch=document.getElementById("manualBranch")?.value;
   const emp=document.getElementById("manualEmployee");
   if(!emp)return;
-  if(!branch){emp.innerHTML='<option value="">Select Branch first</option>';return}
+  if(!branch){emp.innerHTML='<option value="">Select Employee Name</option>';return}
   emp.innerHTML='<option value="">Loading employees…</option>';
   try{
     const {data,error}=await sb.from("employees").select("id,employee_code,full_name,branch_id").eq("active",true).eq("branch_id",Number(branch)).order("full_name");
