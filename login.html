@@ -59,7 +59,7 @@ async function login(role){
     sessionStorage.setItem('kda_pending_access_token',data.access_token);
     sessionStorage.setItem('kda_pending_refresh_token',data.refresh_token);
     $('msg').innerHTML='<span class="ok">✅ Login successful. Opening Back Office…</span>';
-    location.replace('./index.html?login=1');
+    location.replace('./office.html');
   }catch(e){
     const msg=e.name==='AbortError'?'Connection timed out. Please check your internet and try again.':(e.message||String(e));
     $('msg').innerHTML='<span class="bad">❌ '+safe(msg)+'</span>';
