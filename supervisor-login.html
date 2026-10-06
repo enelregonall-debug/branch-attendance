@@ -657,7 +657,6 @@ async function loginAs(requestedRole){
     authToken=d.access_token;
     session={access_token:authToken,user:d.user||null};
     authRole='supervisor';
-    localStorage.setItem('kda_supervisor_token',authToken);
     document.getElementById('authGate').style.display='none';
     document.getElementById('app').innerHTML='<div class="card"><h2>Supervisor Dashboard</h2><p>Loading your records…</p></div>';
     try{
@@ -743,11 +742,7 @@ async function api(path, opts={}){
 function localDateString(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;} function localMonthString(d=new Date()){return localDateString(d).slice(0,7);} const today=()=>localDateString();
 
 async function loadBranches(){
-  // Branch names/locations are readable with the public key so the Back Office
-  // does not get blocked by an authenticated SELECT/RLS policy on branches.
-  const r=await publicFetch("/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc");
-  if(!r.ok) throw new Error("Could not load branches from Supabase (HTTP "+r.status+").");
-  branches=await r.json();
+  branches=await api("/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc");
   if(!Array.isArray(branches)||!branches.length) throw new Error("No branches found in Supabase.");
 }
 function branchName(id){if(id===null||id===undefined||id==="")return "ANY BRANCH";return branches.find(b=>String(b.id)===String(id))?.name||"Unknown";}
@@ -1118,6 +1113,7 @@ async function csv(){
 initTheme(); initPreset(); initTableDensity(); initFont();
 document.getElementById('authGate').style.display='flex';
 supervisorBoot();
+document.getElementById('supervisorPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter')loginAs('supervisor')});
 </script>
 </body>
 </html>
