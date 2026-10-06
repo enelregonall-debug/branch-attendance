@@ -315,17 +315,20 @@ function setManualMsg(s,ok){
 }
 
 async function loadAttendance(){
-  const status=document.getElementById("attStatus"), wrap=document.getElementById("attTableWrap"), date=document.getElementById("attDate");
+  const status=document.getElementById("attStatus"), wrap=document.getElementById("attTableWrap"), date=document.getElementById("attDate"), branchFilter=document.getElementById("attBranchFilter");
+  const selectedBranch=branchFilter?.value||"";
+  const selectedDate=date?.value||phDate();
   try{
-    const today=phDate(); date.value=today;
+    const today=selectedDate; date.value=today;
     const [{data:branches,error:be}]=await Promise.all([
       sb.from("branches").select("id,name").order("name")
     ]);
     if(be) throw be;
     attendanceBranches=branches||[];
     document.getElementById("attBranchFilter").innerHTML='<option value="">All Branches</option>'+attendanceBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
-    document.getElementById("attRefresh").onclick=loadAttendance;
-    date.onchange=loadAttendance; document.getElementById("attBranchFilter").onchange=loadAttendance;
+    if(selectedBranch) document.getElementById("attBranchFilter").value=selectedBranch;
+    document.getElementById("attRefresh").onclick=fetchAttendance;
+    date.onchange=fetchAttendance; document.getElementById("attBranchFilter").onchange=fetchAttendance;
     await fetchAttendance();
 }catch(e){status.textContent="Could not load attendance: "+(e?.message||e);wrap.innerHTML=""}
 }
@@ -334,11 +337,11 @@ async function fetchAttendance(){
   const date=document.getElementById("attDate").value||phDate(), branch=document.getElementById("attBranchFilter").value;
   status.textContent="Loading attendance…"; wrap.innerHTML="";
   try{
-    let q=sb.from("attendance").select("id,attendance_date,employee_id,time_in,time_out,employees(employee_code,full_name,branch_id)").eq("attendance_date",date).order("time_in",{ascending:true});
+    let q=sb.from("attendance").select("id,attendance_date,employee_id,branch_id,time_in,time_out,employees(employee_code,full_name,branch_id)").eq("attendance_date",date).order("time_in",{ascending:true});
     const {data,error}=await q;
     if(error) throw error;
     attendanceRows=data||[];
-    if(branch) attendanceRows=attendanceRows.filter(r=>String(r.employees?.branch_id??"")===String(branch));
+    if(branch) attendanceRows=attendanceRows.filter(r=>String(r.branch_id??r.employees?.branch_id??"")===String(branch));
     renderAttendanceTable();
   }catch(e){status.textContent="Could not load attendance: "+(e?.message||e)}
 }
@@ -349,7 +352,7 @@ function renderAttendanceTable(){
   wrap.innerHTML=`
     <table class="att-table"><thead><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th><th>ACTION</th></tr></thead>
     <tbody>${attendanceRows.map(r=>{
-      const b=attendanceBranches.find(x=>String(x.id)===String(r.employees?.branch_id));
+      const b=attendanceBranches.find(x=>String(x.id)===String(r.branch_id??r.employees?.branch_id));
       return `<tr>
         <td>${escText(r.attendance_date)}</td>
         <td><b>${escText(r.employees?.employee_code||"—")}</b></td>
