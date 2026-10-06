@@ -700,13 +700,26 @@ async function syncQueue(){
 window.addEventListener('online',async()=>{await cacheBranchList();await syncQueue();if(employeeSession)renderEmployeeApp()});
 async function initAuth(){
   if(isEmployeeMode()){await initEmployeeMode();return;}
-  await ensureSupabase();
-  await cacheBranchList();
-  const {data}=await sb.auth.getSession();
-  session=data.session;
-  authRole=session?.user?.user_metadata?.role==='boss'?'boss':'supervisor';
-  renderAuth();
-  sb.auth.onAuthStateChange((_event,s)=>{session=s;authRole=s?.user?.user_metadata?.role==='boss'?'boss':'supervisor';renderAuth();});
+  try{
+    await ensureSupabase();
+    const {data}=await sb.auth.getSession();
+    session=data.session;
+    if(!session){
+      location.replace('./login.html');
+      return;
+    }
+    authRole=session.user?.user_metadata?.role==='boss'?'boss':'supervisor';
+    renderAuth();
+    await cacheBranchList();
+    sb.auth.onAuthStateChange((_event,s)=>{
+      session=s;
+      if(!s){location.replace('./login.html');return;}
+      authRole=s.user?.user_metadata?.role==='boss'?'boss':'supervisor';
+      renderAuth();
+    });
+  }catch(e){
+    location.replace('./login.html');
+  }
 }
 function renderAuth(){
   const gate=document.getElementById("authGate");
