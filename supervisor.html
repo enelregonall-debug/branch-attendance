@@ -593,6 +593,8 @@ async function loadMonthlySummary(){
       const month=monthEl.value||phDate().slice(0,7), filter=branchEl.value||"";
       status.textContent="Loading monthly spreadsheet…"; wrap.innerHTML="";
       const [y,m]=month.split("-").map(Number), days=new Date(y,m,0).getDate();
+      const todayKey=phDate();
+      const currentMonthKey=todayKey.slice(0,7);
       const {data:att,error:ae}=await sb.from("attendance")
         .select("employee_id,attendance_date,time_in,time_out")
         .gte("attendance_date",month+"-01")
@@ -610,7 +612,9 @@ async function loadMonthlySummary(){
         let present=0;
         for(let d=1;d<=31;d++){
           if(d>days){ marks.push("—"); continue; }
-          const key=month+"-"+String(d).padStart(2,"0"), a=daily[key];
+          const key=month+"-"+String(d).padStart(2,"0");
+          if(month===currentMonthKey && key>todayKey){ marks.push("—"); continue; }
+          const a=daily[key];
           let mark="";
           if(a?.time_in&&a?.time_out){
             const tin=new Date(a.time_in), tout=new Date(a.time_out);
@@ -618,7 +622,7 @@ async function loadMonthlySummary(){
             if(hours>0 && hours<=6){ present+=0.5; mark="½"; }
             else { present+=1; mark="✅"; }
           }else if(a?.time_in){
-            present+=1; mark="P";
+            present+=1; mark="✅";
           }else{
             mark="❎";
           }
@@ -645,7 +649,7 @@ async function loadMonthlySummary(){
             '<td><b>'+r.present+'</b></td><td><b>'+r.absent+'</b></td>'+
             '<td><b>₱'+r.pay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})+'</b></td></tr>';
         }).join("")+'</tbody></table>'+
-        '<div style="margin-top:10px;color:var(--muted);font-size:13px"><b>Legend:</b> ✅ = Present &nbsp; ❎ = Absent &nbsp; ½ = Half Day &nbsp; — = Date not in selected month. &nbsp; Scheduled payroll basis = 31 days.</div>';
+        '<div style="margin-top:10px;color:var(--muted);font-size:13px"><b>Legend:</b> ✅ = Present &nbsp; ❎ = Absent &nbsp; ½ = Half Day &nbsp; — = Upcoming / date not in selected month. &nbsp; Scheduled payroll basis = 31 days.</div>';
     }
   }catch(e){status.textContent="Could not load monthly summary: "+(e?.message||e)}
 }
