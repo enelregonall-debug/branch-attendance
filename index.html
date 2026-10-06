@@ -996,7 +996,8 @@ async function attendance(){
   '<button onclick="csv()">Export '+monthVal+(branchVal==='all'?'':' '+esc(branchName(branchVal)))+' CSV</button>'+
   '<table><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th><th>ACTION</th></tr>'+
   filtered.map(x=>{const e=emp(x.employee_id);return '<tr><td>'+esc(x.attendance_date)+'</td><td>'+esc(e?.employee_code||'Unknown')+'</td><td>'+esc(e?.full_name||'Unknown')+'</td><td>'+esc(branchName(x.branch_id))+'</td><td>'+(x.time_in?new Date(x.time_in).toLocaleTimeString():'—')+'</td><td>'+(x.time_out?new Date(x.time_out).toLocaleTimeString():'—')+'</td><td><button onclick="deleteAttendance(\''+esc(x.id)+'\')" style="background:#fff;color:#b00020;border:1px solid #d66;padding:6px 10px">Delete</button></td></tr>'}).join('')+
-  '</table><p class="muted small">Showing '+filtered.length+' attendance record(s). You can delete an incorrect attendance entry from here.</p></div>';\n  loadManualEmployees();
+  '</table><p class="muted small">Showing '+filtered.length+' attendance record(s). You can delete an incorrect attendance entry from here.</p></div>';
+  loadManualEmployees();
 }
 async function loadManualEmployees(){
  const sel=document.getElementById('manualEmp'); if(!sel)return;
