@@ -719,6 +719,7 @@ async function initAuth(){
     authRole=session.user?.user_metadata?.role==='boss'?'boss':'supervisor';
     renderAuth();
     await cacheBranchList();
+    try{ await page('dashboard'); }catch(e){ console.error('Dashboard start failed:',e); }
     sb.auth.onAuthStateChange((_event,s)=>{
       session=s;
       if(!s){location.replace('./login.html');return;}
@@ -841,6 +842,7 @@ async function page(x){
   catch(e){app.innerHTML='<div class="card"><span class="bad">❌ '+esc(e.message)+'</span><p class="muted">Check that your Supabase tables, RLS policies, Project URL and publishable key are correct.</p></div>';}
 }
 
+window.page = page;
 async function dashboard(){
   const d=today();
   const r=await api("/attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&attendance_date=eq."+d+"&order=time_in.desc");
