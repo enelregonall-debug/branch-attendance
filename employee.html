@@ -1082,7 +1082,7 @@ async function csv(){
   const rows=[['DATE','EMP ID','NAME','BRANCH','TIME IN','TIME OUT'],...filtered.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||'Unknown',e?.full_name||'Unknown',branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():'',x.time_out?new Date(x.time_out).toLocaleString():'']})];
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\\n')],{type:'text/csv'}));a.download='attendance-'+month+(branch==='all'?'':'-'+String(branchName(branch)).replace(/[^a-z0-9]+/gi,'-'))+'.csv';a.click();
 }
-try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v=final1',{updateViaCache:'none'}).then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); initAuth();
+try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v=final2',{updateViaCache:'none'}).then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); initAuth();
 </script>
 </body>
 </html>
