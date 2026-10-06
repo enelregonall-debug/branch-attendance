@@ -17,7 +17,7 @@ body{font-family:Arial,sans-serif;background:#f3f6fb;margin:0;color:#172033}.wra
 <label><b>Select your name</b></label>
 <select id="employee"><option>Loading employees…</option></select>
 <button onclick="registerPhone()">Register This Phone</button>
-<button class="secondary" onclick="loadData()">Refresh</button>
+<button class="secondary" onclick="loadData()">Refresh</button><button class="secondary" onclick="openAssist()">👤 Supervisor Assist — No Phone</button>
 </div>
 <div id="attendance" class="hidden">
 <p id="selected" class="big"></p>
@@ -26,6 +26,25 @@ body{font-family:Arial,sans-serif;background:#f3f6fb;margin:0;color:#172033}.wra
 <button class="secondary" onclick="changeEmployee()">Change Employee / Phone</button>
 </div>
 <div id="msg" class="msg">Starting…</div>
+</div></div>
+<div id="assistModal" style="display:none;position:fixed;inset:0;background:#0008;z-index:9998;align-items:center;justify-content:center;padding:20px">
+<div style="background:white;border-radius:18px;padding:22px;max-width:430px;width:100%;box-shadow:0 12px 40px #0004">
+<h2 style="margin-top:0">👤 Supervisor-Assisted Attendance</h2>
+<p class="muted">For employees who do not have a phone. Supervisor login is required.</p>
+<div id="assistLogin">
+<input id="assistEmail" type="email" placeholder="Supervisor email" style="width:100%;box-sizing:border-box;margin-top:8px">
+<input id="assistPassword" type="password" placeholder="Supervisor password" style="width:100%;box-sizing:border-box;margin-top:8px">
+<button onclick="supervisorAssistLogin()">Supervisor Sign In</button>
+</div>
+<div id="assistPanel" style="display:none">
+<label><b>Select employee</b></label>
+<select id="assistEmp"></select>
+<button onclick="supervisorAssistRecord('in')">✅ TIME IN</button>
+<button onclick="supervisorAssistRecord('out')">⏰ TIME OUT</button>
+<button class="secondary" onclick="supervisorAssistLogout()">Finish Supervisor Session</button>
+</div>
+<p id="assistMsg" class="msg"></p>
+<button class="secondary" onclick="closeAssist()">Cancel / Close</button>
 </div></div>
 <script>
 const API='https://ktrrjldiniwqryuojjnq.supabase.co/rest/v1';
@@ -46,7 +65,7 @@ function successConfirm(type,e){
   document.body.appendChild(box);
   document.getElementById('successOk').onclick=()=>box.remove();
 }
-async function api(path,opt={}){const r=await fetch(API+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json',...(opt.headers||{})}});if(!r.ok){let x='HTTP '+r.status;try{const j=await r.json();x=j.message||j.details||x}catch{};throw Error(x)}return r}
+async function api(path,opt={}){const authToken=assistSession?.access_token||KEY;const r=await fetch(API+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+authToken,'Content-Type':'application/json',...(opt.headers||{})}});if(!r.ok){let x='HTTP '+r.status;try{const j=await r.json();x=j.message||j.details||x}catch{};throw Error(x)}return r}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function esc(s){return String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))}
 function dist(a,b,c,d){const R=6371000,p=Math.PI/180,A=(c-a)*p,B=(d-b)*p,x=Math.sin(A/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(B/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
@@ -72,6 +91,45 @@ function showAttendance(e){document.getElementById('setup').classList.add('hidde
 function changeEmployee(){localStorage.removeItem(PKEY);location.reload()}
 async function registerPhone(){if(busy)return;const code=document.getElementById('employee').value,e=employees.find(x=>x.employee_code===code);if(!e){msg('Please select your name first.');return}localStorage.setItem(PKEY,JSON.stringify({id:e.id,employee_code:e.employee_code,full_name:e.full_name,branch_id:e.branch_id}));showAttendance(e);msg('Phone registered. You can now record attendance.',true)}
 async function inside(){if(!branch.latitude||!branch.longitude)throw Error('Branch GPS location is not set yet. Ask the Supervisor to set it.');const p=await getPos(),d=dist(p.coords.latitude,p.coords.longitude,Number(branch.latitude),Number(branch.longitude));if(d>Number(branch.radius_m||75))throw Error('You are outside '+branch.name+'. Attendance is allowed only inside the branch.');return d}
+async function loadSupabase(){if(window.supabase)return window.supabase;if(!window.__supabasePromise){window.__supabasePromise=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';s.onload=()=>resolve(window.supabase);s.onerror=()=>reject(new Error('Could not load Supervisor login.'));document.head.appendChild(s);});}return window.__supabasePromise}
+function openAssist(){document.getElementById('assistModal').style.display='flex';document.getElementById('assistMsg').textContent='';document.getElementById('assistPanel').style.display='none';document.getElementById('assistLogin').style.display='block';}
+async function closeAssist(){try{if(assistSession){const s=await loadSupabase();await s.createClient('https://ktrrjldiniwqryuojjnq','sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK').auth.signOut();}}catch{}assistSession=null;document.getElementById('assistModal').style.display='none';}
+async function supervisorAssistLogin(){
+ const m=document.getElementById('assistMsg'),email=document.getElementById('assistEmail').value.trim(),password=document.getElementById('assistPassword').value;
+ if(!navigator.onLine){m.innerHTML='<span class="bad">Supervisor Assist needs internet.</span>';return}
+ if(!email||!password){m.innerHTML='<span class="bad">Enter Supervisor email and password.</span>';return}
+ m.textContent='Signing in…';
+ try{
+  const s=await loadSupabase(); const client=s.createClient('https://ktrrjldiniwqryuojjnq','sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK');
+  const {data,error}=await client.auth.signInWithPassword({email,password});
+  if(error)throw error; assistSession=data.session;
+  const rows=await api('/employees?active=eq.true&or=(branch_id.eq.'+Number(branch.id)+',branch_id.is.null)&select=id,employee_code,full_name,branch_id&order=full_name.asc');
+  if(!rows.length)throw new Error('No active employees are assigned to this branch.');
+  document.getElementById('assistEmp').innerHTML=rows.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
+  document.getElementById('assistLogin').style.display='none';document.getElementById('assistPanel').style.display='block';
+  m.innerHTML='<span class="ok">✅ Supervisor verified. Select employee.</span>';
+ }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';assistSession=null}
+}
+async function supervisorAssistRecord(type){
+ const m=document.getElementById('assistMsg'),code=document.getElementById('assistEmp').value;
+ try{
+  const rows=await api('/employees?employee_code=eq.'+encodeURIComponent(code)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
+  const e=rows[0]; if(!e)throw new Error('Employee not found.');
+  if(e.branch_id!=null&&Number(e.branch_id)!==Number(branch.id))throw new Error('Employee is not assigned to this branch.');
+  const date=today(), existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(e.id)+'&attendance_date=eq.'+date+'&select=id,time_in,time_out'),now=new Date().toISOString();
+  if(type==='in'){
+   if(existing[0]?.time_in)throw new Error(e.full_name+' already has TIME IN today.');
+   await api('/attendance',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({employee_id:e.id,branch_id:branch.id,attendance_date:date,time_in:now})});
+  }else{
+   if(new Date().getHours()<12)throw new Error('TIME OUT is locked until 12:00 PM.');
+   if(!existing[0]?.time_in)throw new Error(e.full_name+' has no TIME IN today.');
+   if(existing[0].time_out)throw new Error(e.full_name+' already has TIME OUT today.');
+   await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({time_out:now})});
+  }
+  m.innerHTML='<span class="ok">✅ '+type.toUpperCase()+' successful for '+esc(e.full_name)+'.</span>';
+ }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
+}
+async function supervisorAssistLogout(){await closeAssist();openAssist();document.getElementById('assistMsg').textContent='Supervisor session finished.'}
 async function attendance(type){if(busy)return;busy=true;try{const e=JSON.parse(localStorage.getItem(PKEY)||'null');if(!e)throw Error('Register this phone first.');if(Number(e.branch_id)!==Number(branch.id)&&e.branch_id!=null)throw Error('This employee is not assigned to this branch.');await inside();const date=today();const r=await api('/attendance?employee_id=eq.'+encodeURIComponent(e.id)+'&attendance_date=eq.'+date+'&select=id,time_in,time_out');const rows=await r.json();const now=new Date().toISOString();if(type==='in'){if(rows[0]?.time_in)throw Error('TIME IN already recorded today.');const x=await api('/attendance',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({employee_id:e.id,branch_id:branch.id,attendance_date:date,time_in:now})});if(!x.ok)throw Error('Could not save TIME IN.')}else{if(new Date().getHours()<12)throw Error('TIME OUT is locked until 12:00 PM.');if(!rows[0]?.time_in)throw Error('No TIME IN found for today.');if(rows[0].time_out)throw Error('TIME OUT already recorded today.');await api('/attendance?id=eq.'+rows[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({time_out:now})})}msg('✅ '+type.toUpperCase()+' recorded successfully for '+e.full_name+'.',true); successConfirm(type,e)}catch(e){msg('❌ '+e.message)}finally{busy=false}}
 loadData();
 </script></body></html>
