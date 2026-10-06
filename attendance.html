@@ -52,7 +52,7 @@ const KEY='sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK';
 const qs=new URLSearchParams(location.search);
 const branchId=qs.get('branchId'), token=qs.get('branch'), branchNameParam=qs.get('branchName');
 let branch=null, employees=[], busy=false;
-const BKEY='kda_clean_branch_v1', EKEY='kda_clean_employees_v1', PKEY='kda_clean_phone_v1', QKEY='kda_clean_queue_v1';
+const BKEY='kda_clean_branch_v2', EKEY='kda_clean_employees_v2_', PKEY='kda_clean_phone_v1', QKEY='kda_clean_queue_v1';
 function msg(s,good=false){const m=document.getElementById('msg');m.className='msg '+(good?'ok':'bad');m.textContent=s}
 function successConfirm(type,e){
   const title=type==='in'?'TIME IN SUCCESSFUL':'TIME OUT SUCCESSFUL';
@@ -73,21 +73,27 @@ function dist(a,b,c,d){const R=6371000,p=Math.PI/180,A=(c-a)*p,B=(d-b)*p,x=Math.
 function getPos(){return new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:30000}))}
 async function loadData(){
  try{
-  if(!branchId&&!token)throw Error('Invalid Branch QR. No branch information found.');
+  if(!branchId&&!token&&!branchNameParam)throw Error('Invalid Branch QR. No branch information found.');
+  let cached=null;try{cached=JSON.parse(localStorage.getItem(BKEY)||'null')}catch{}
+  const cacheMatches=cached&&((branchId&&String(cached.id)===String(branchId))||(branchNameParam&&String(cached.name)===String(branchNameParam))||(token&&String(cached.qr_token||'')===String(token)));
+  if(cacheMatches){
+    branch=cached;document.getElementById('branch').textContent='Branch: '+branch.name;
+    const ce=JSON.parse(localStorage.getItem(EKEY+branch.id)||'[]');
+    if(Array.isArray(ce)&&ce.length){employees=ce;renderEmployees();const bind=JSON.parse(localStorage.getItem(PKEY)||'null');if(bind){showAttendance(bind);msg('Ready — '+bind.full_name+'.',true)}else{document.getElementById('setup').classList.remove('hidden');msg('Ready. Select your name.',true)}}
+  }
   let r,arr=[];
-  if(branchId){r=await api('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}\n  if(!arr.length&&branchNameParam){r=await api('/branches?name=eq.'+encodeURIComponent(branchNameParam)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
+  if(branchId){r=await api('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
+  if(!arr.length&&branchNameParam){r=await api('/branches?name=eq.'+encodeURIComponent(branchNameParam)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
   if(!arr.length&&token){r=await api('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
-  if(!arr.length)throw Error('Branch QR could not be verified.');
-  branch=arr[0];localStorage.setItem(BKEY,JSON.stringify(branch));
-  document.getElementById('branch').textContent='Branch: '+branch.name;
+  if(!arr.length){if(cacheMatches)return;throw Error('Branch QR could not be verified.')}
+  branch=arr[0];localStorage.setItem(BKEY,JSON.stringify(branch));document.getElementById('branch').textContent='Branch: '+branch.name;
   r=await api('/employees?active=eq.true&or=(branch_id.eq.'+Number(branch.id)+',branch_id.is.null)&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
-  employees=await r.json();localStorage.setItem(EKEY,JSON.stringify(employees));
-  if(!employees.length)throw Error('No active employees are assigned to this branch.');
-  const sel=document.getElementById('employee');sel.innerHTML='<option value="">Select your name</option>'+employees.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
-  const bind=JSON.parse(localStorage.getItem(PKEY)||'null');
-  if(bind){showAttendance(bind);msg('This phone is registered to '+bind.full_name+'.',true)}else{document.getElementById('setup').classList.remove('hidden');msg('Select your name to register this phone.',true)}
+  employees=await r.json();if(!Array.isArray(employees)||!employees.length)throw Error('No active employees are assigned to this branch.');
+  localStorage.setItem(EKEY+branch.id,JSON.stringify(employees));renderEmployees();
+  const bind=JSON.parse(localStorage.getItem(PKEY)||'null');if(bind){showAttendance(bind);msg('This phone is registered to '+bind.full_name+'.',true)}else{document.getElementById('setup').classList.remove('hidden');msg('Select your name to register this phone.',true)}
  }catch(e){msg('❌ '+e.message)}
 }
+function renderEmployees(){const sel=document.getElementById('employee');sel.innerHTML='<option value="">Select your name</option>'+employees.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');}
 function showAttendance(e){document.getElementById('setup').classList.add('hidden');document.getElementById('attendance').classList.remove('hidden');document.getElementById('selected').textContent=e.full_name+' — '+e.employee_code}
 function changeEmployee(){localStorage.removeItem(PKEY);location.reload()}
 async function registerPhone(){if(busy)return;const code=document.getElementById('employee').value,e=employees.find(x=>x.employee_code===code);if(!e){msg('Please select your name first.');return}localStorage.setItem(PKEY,JSON.stringify({id:e.id,employee_code:e.employee_code,full_name:e.full_name,branch_id:e.branch_id}));showAttendance(e);msg('Phone registered. You can now record attendance.',true)}
