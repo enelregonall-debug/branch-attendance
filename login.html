@@ -31,59 +31,37 @@ h1{font-size:28px;margin:8px 0 10px}.note{margin-top:24px}
 <script>
 const SUPABASE_URL='https://ktrrjldiniwqryuojjnq.supabase.co';
 const SUPABASE_KEY='sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
-function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]) )}
+function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 async function login(role){
-  const email=$('email').value.trim(),password=$('password').value;
-  if(!email||!password){$('msg').innerHTML='<span class="bad">Enter email and password.</span>';return}
-  const btn=role==='boss'?$('employerBtn'):$('supervisorBtn');
-  btn.disabled=true; const old=btn.textContent; btn.textContent='Signing in…';
-  $('msg').textContent='Connecting securely…';
-  try{
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),12000);
-    const res=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
-      method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({email,password}),
-      signal:controller.signal
-    });
-    clearTimeout(timer);
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error_description||data.msg||data.message||'Login failed.');
-    const actual=data.user?.user_metadata?.role||'supervisor';
-    if(role==='boss'&&actual!=='boss') throw new Error('This account is not an Employer account.');
-    if(role==='supervisor'&&actual==='boss') throw new Error('This account is the Employer account. Use “Sign in as Employer”.');
-    if(!data.access_token||!data.refresh_token) throw new Error('Login succeeded but no secure session was returned.');
-    sessionStorage.setItem('kda_pending_access_token',data.access_token);
-    sessionStorage.setItem('kda_pending_refresh_token',data.refresh_token);
-    $('msg').innerHTML='<span class="ok">✅ Login successful. Opening Back Office…</span>';
-    window.location.href='./index.html?open='+Date.now();
-  }catch(e){
-    const msg=e.name==='AbortError'?'Connection timed out. Please check your internet and try again.':(e.message||String(e));
-    $('msg').innerHTML='<span class="bad">❌ '+safe(msg)+'</span>';
-    btn.disabled=false;btn.textContent=old;
-  }
+ const email=$('email').value.trim(), password=$('password').value;
+ const m=$('msg'), btn=role==='boss'?$('employerBtn'):$('supervisorBtn');
+ if(!email||!password){m.innerHTML='<span class="bad">Enter email and password.</span>';return}
+ btn.disabled=true; m.textContent='Signing in…';
+ try{
+  const ctrl=new AbortController(), timer=setTimeout(()=>ctrl.abort(),15000);
+  const res=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+   method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
+   body:JSON.stringify({email,password}),signal:ctrl.signal
+  });
+  clearTimeout(timer);
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error_description||data.msg||data.message||'Invalid credentials.');
+  const actual=data.user?.user_metadata?.role||'supervisor';
+  if(role==='boss'&&actual!=='boss') throw new Error('This account is not the Employer account.');
+  if(role==='supervisor'&&actual==='boss') throw new Error('This account is the Employer account. Use Employer login.');
+  sessionStorage.setItem('kda_pending_access_token',data.access_token);
+  sessionStorage.setItem('kda_pending_refresh_token',data.refresh_token);
+  sessionStorage.setItem('kda_login_role',actual);
+  m.innerHTML='<span class="ok">✅ Login successful. Opening Back Office…</span>';
+  location.href='./index.html?open='+Date.now();
+ }catch(e){
+  m.innerHTML='<span class="bad">❌ '+safe(e.name==='AbortError'?'Connection timed out.':e.message)+'</span>';
+  btn.disabled=false;
+ }
 }
 $('supervisorBtn').onclick=()=>login('supervisor');
 $('employerBtn').onclick=()=>login('boss');
-$('signupBtn').onclick=async()=>{
-  const email=$('email').value.trim(),password=$('password').value;
-  if(!email||password.length<6){$('msg').innerHTML='<span class="bad">Enter email and a password with at least 6 characters.</span>';return}
-  $('msg').textContent='Creating account…';
-  const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'supervisor'}}});
-  if(error){$('msg').innerHTML='<span class="bad">❌ '+safe(error.message)+'</span>';return}
-  $('msg').innerHTML='<span class="ok">✅ Account created. Check your email for confirmation, then sign in.</span>';
-};
-$('resendBtn').onclick=async()=>{
-  const email=$('email').value.trim();
-  if(!email){$('msg').innerHTML='<span class="bad">Enter the supervisor email first.</span>';return}
-  $('msg').textContent='Sending confirmation email…';
-  const {error}=await sb.auth.resend({type:'signup',email});
-  $('msg').innerHTML=error?'<span class="bad">❌ '+safe(error.message)+'</span>':'<span class="ok">✅ Confirmation email sent. Check Inbox and Spam/Junk.</span>';
-};
-(async()=>{const {data}=await sb.auth.getSession();if(data.session)location.replace('./index.html')})();
-</script>
+</script>>
 </body>
 </html>
