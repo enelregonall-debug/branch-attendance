@@ -37,6 +37,11 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.qr-card{text-align:center;background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px}.qr-box{min-height:190px;display:grid;place-items:center;margin:12px 0}.qr-card h3{margin:0 0 6px}.qr-card p{margin:0;color:var(--muted);font-size:13px}.qr-card button{margin-top:10px;background:var(--primary);color:#fff}.panel{margin-top:18px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px}
 .theme-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid var(--border)}
 .theme-row:last-child{border-bottom:0}
+.att-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.att-tools input,.att-tools select{max-width:220px}
+.att-table-wrap{overflow:auto;background:#fff;border:1px solid var(--border);border-radius:14px}
+.att-table{width:100%;border-collapse:collapse;min-width:900px}.att-table th,.att-table td{padding:12px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}.att-table th{background:#f8fafc;font-size:13px;color:var(--muted)}.att-table tr:last-child td{border-bottom:0}
+.delete-btn{background:#fff1f0;color:#b42318;border:1px solid #f3c7c3;padding:8px 12px}
+
 .emp-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .emp-tools input,.emp-tools select{max-width:260px}
 .emp-table-wrap{overflow:auto;background:#fff;border:1px solid var(--border);border-radius:14px}
@@ -149,7 +154,19 @@ async function render(page){
       <div id="qrGrid" class="qr-grid"></div>`;
     await loadBranchQR();
   }else if(page==="attendance"){
-    content.innerHTML=`<h1 class="page-title">Attendance</h1><p class="page-sub">Attendance records and management.</p><div class="panel">Attendance module — next step.</div>`;
+    content.innerHTML=`
+      <h1 class="page-title">Attendance</h1>
+      <p class="page-sub">Attendance records and management.</p>
+      <div class="panel">
+        <div class="att-tools">
+          <input id="attDate" type="date">
+          <select id="attBranchFilter"><option value="">All Branches</option></select>
+          <button id="attRefresh" class="refresh">Refresh</button>
+        </div>
+        <div id="attStatus" style="color:var(--muted)">Loading attendance…</div>
+      </div>
+      <div id="attTableWrap" class="att-table-wrap"></div>`;
+    await loadAttendance();
   }else if(page==="monthly"){
     content.innerHTML=`<h1 class="page-title">Monthly Summary</h1><p class="page-sub">Present, absent and estimated pay.</p><div class="panel">Monthly Summary module — next step.</div>`;
   }else{
@@ -168,6 +185,67 @@ function phDate(){
   const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
   return y+"-"+m+"-"+day;
 }
+let attendanceRows=[];
+let attendanceBranches=[];
+async function loadAttendance(){
+  const status=document.getElementById("attStatus"), wrap=document.getElementById("attTableWrap"), date=document.getElementById("attDate");
+  try{
+    const today=phDate(); date.value=today;
+    const [{data:branches,error:be}]=await Promise.all([
+      sb.from("branches").select("id,name").order("name")
+    ]);
+    if(be) throw be;
+    attendanceBranches=branches||[];
+    document.getElementById("attBranchFilter").innerHTML='<option value="">All Branches</option>'+attendanceBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
+    document.getElementById("attRefresh").onclick=loadAttendance;
+    date.onchange=loadAttendance; document.getElementById("attBranchFilter").onchange=loadAttendance;
+    await fetchAttendance();
+  }catch(e){status.textContent="Could not load attendance: "+(e?.message||e);wrap.innerHTML=""}
+}
+async function fetchAttendance(){
+  const status=document.getElementById("attStatus"), wrap=document.getElementById("attTableWrap");
+  const date=document.getElementById("attDate").value||phDate(), branch=document.getElementById("attBranchFilter").value;
+  status.textContent="Loading attendance…"; wrap.innerHTML="";
+  try{
+    let q=sb.from("attendance").select("id,attendance_date,employee_id,time_in,time_out,employees(employee_code,full_name,branch_id)").eq("attendance_date",date).order("time_in",{ascending:true});
+    const {data,error}=await q;
+    if(error) throw error;
+    attendanceRows=data||[];
+    if(branch) attendanceRows=attendanceRows.filter(r=>String(r.employees?.branch_id??"")===String(branch));
+    renderAttendanceTable();
+  }catch(e){status.textContent="Could not load attendance: "+(e?.message||e)}
+}
+function fmtTime(v){if(!v)return"—";try{return new Date(v).toLocaleTimeString("en-PH",{hour:"numeric",minute:"2-digit",second:"2-digit"})}catch{return String(v)}}
+function renderAttendanceTable(){
+  const status=document.getElementById("attStatus"), wrap=document.getElementById("attTableWrap");
+  status.textContent=attendanceRows.length+" attendance record(s).";
+  wrap.innerHTML=`
+    <table class="att-table"><thead><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th><th>ACTION</th></tr></thead>
+    <tbody>${attendanceRows.map(r=>{
+      const b=attendanceBranches.find(x=>String(x.id)===String(r.employees?.branch_id));
+      return `<tr>
+        <td>${escText(r.attendance_date)}</td>
+        <td><b>${escText(r.employees?.employee_code||"—")}</b></td>
+        <td>${escText(r.employees?.full_name||"—")}</td>
+        <td>${escText(b?.name||"Any Branch")}</td>
+        <td>${escText(fmtTime(r.time_in))}</td>
+        <td>${escText(fmtTime(r.time_out))}</td>
+        <td><button class="delete-btn" onclick="deleteAttendance('${String(r.id).replace(/'/g,"\\'")}')">🗑️ Delete</button></td>
+      </tr>`;
+    }).join("")}</tbody></table>`;
+}
+async function deleteAttendance(id){
+  const row=attendanceRows.find(r=>String(r.id)===String(id)); if(!row)return;
+  const name=row.employees?.full_name||"this attendance record";
+  if(!confirm("Delete attendance for "+name+" on "+row.attendance_date+"?"))return;
+  try{
+    const {error}=await sb.from("attendance").delete().eq("id",row.id);
+    if(error)throw error;
+    attendanceRows=attendanceRows.filter(r=>String(r.id)!==String(row.id));
+    renderAttendanceTable();
+  }catch(e){alert("Delete failed: "+(e?.message||e))}
+}
+
 let employeeRows=[];
 let employeeBranches=[];
 
