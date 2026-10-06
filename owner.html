@@ -73,15 +73,16 @@ async function signIn(){
   token=d.access_token; user=d.user;
   if(user?.user_metadata?.role!=='boss'){token='';throw new Error('This account is not an Employer / Owner account.');}
   document.getElementById('login').style.display='none';document.getElementById('office').style.display='block';
-  await load(); show('dashboard');
+  try{await load(); show('dashboard');}
+  catch(e){document.getElementById('office').style.display='block';document.getElementById('app').innerHTML='<div class="card"><h2>Employer data access</h2><p class="bad">❌ '+esc(e.message)+'</p><p class="muted">Login is working. One or more read permissions/tables need attention.</p></div>'}
  }catch(e){msg.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
 }
 async function load(){
- [branches,employees,atts]=await Promise.all([
-  rest('branches?select=id,name&order=id.asc'),
-  rest('employees?select=id,employee_code,full_name,position,branch_id,daily_rate,active&order=id.asc'),
-  rest('attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out,status&order=attendance_date.desc')
- ]);
+  const errors=[];
+  try{branches=await rest('branches?select=id,name&order=id.asc');}catch(e){branches=[];errors.push('Branches: '+e.message);}
+  try{employees=await rest('employees?select=id,employee_code,full_name,position,branch_id,daily_rate,active&order=id.asc');}catch(e){employees=[];errors.push('Employees: '+e.message);}
+  try{atts=await rest('attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc');}catch(e){atts=[];errors.push('Attendance: '+e.message);}
+  if(errors.length) throw new Error(errors.join(' | '));
 }
 const bname=id=>id==null?'ANY BRANCH':(branches.find(b=>String(b.id)===String(id))?.name||'Unknown');
 const ename=id=>employees.find(e=>String(e.id)===String(id))?.full_name||'Unknown';
