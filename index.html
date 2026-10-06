@@ -8,6 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Katrinas Digital Attendance</title>
 <link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 
 
@@ -121,28 +122,18 @@ body.compact-tables table td{font-size:.9rem}
 </head>
 <body>
 <div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device. Supervisor Assist does not use GPS.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate">
-  <div style="width:min(900px,100%);display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
-    <div class="login">
-      <div style="font-size:34px">🔐</div>
-      <h2>Supervisor Sign In</h2>
-      <p class="muted">Full back-office access: employees, branches, QR, attendance, manual attendance and monthly summary.</p>
-      <input id="supervisorEmail" type="email" placeholder="Supervisor email" autocomplete="username">
-      <input id="supervisorPassword" type="password" placeholder="Supervisor password" autocomplete="current-password">
-      <button onclick="loginAs('supervisor')">🔐 Sign In as Supervisor</button>
-      <button onclick="signupAsSupervisor()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button>
-      <button onclick="resendSupervisorConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
-      <div id="supervisorMsg" class="authmsg small"></div>
-    </div>
-    <div class="login">
-      <div style="font-size:34px">👑</div>
-      <h2>Owner / Employer Sign In</h2>
-      <p class="muted">Read-only access for the employer. Attendance, employees and monthly summary can be viewed, but not edited.</p>
-      <input id="ownerEmail" type="email" placeholder="Owner / Employer email" autocomplete="username">
-      <input id="ownerPassword" type="password" placeholder="Owner / Employer password" autocomplete="current-password">
-      <button onclick="loginAs('boss')">👑 Sign In as Owner</button>
-      <div id="ownerMsg" class="authmsg small"></div>
-      <p class="muted small">Owner account is separate from the Supervisor account.</p>
-    </div>
+  <div class="login" style="width:min(460px,100%)">
+    <div style="font-size:38px">🔐</div>
+    <h2>Katrinas Digital Attendance</h2>
+    <p class="muted">Sign in to the Back Office using the account type that matches your role.</p>
+    <input id="loginEmail" type="email" placeholder="Email" autocomplete="username" style="width:100%;margin-bottom:9px">
+    <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:9px">
+    <button onclick="loginAs('supervisor')" style="width:100%;margin-bottom:8px">🔐 Sign in as Supervisor</button>
+    <button onclick="loginAs('boss')" style="width:100%;background:#fff;color:#172033;border:1px solid #ccd3df">👑 Sign in as Employer</button>
+    <button onclick="signupAsSupervisor()" style="width:100%;margin-top:10px;background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button>
+    <button onclick="resendSupervisorConfirmation()" style="width:100%;margin-top:8px;background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
+    <div id="loginMsg" class="authmsg small"></div>
+    <p class="muted small">Supervisor = full access. Employer = read-only access.</p>
   </div>
 </div>
 <header>
@@ -216,8 +207,28 @@ async function syncImportedDailyRates(){
 
 const API = SUPABASE_URL + "/rest/v1";
 let sb = null;
-function loadScriptOnce(src){return new Promise((resolve,reject)=>{const existing=[...document.scripts].find(s=>s.src===src);if(existing){if(window.supabase&&src.includes("supabase"))return resolve();return existing.addEventListener("load",resolve,{once:true}),existing.addEventListener("error",reject,{once:true});}const s=document.createElement("script");s.src=src;s.async=true;s.onload=()=>resolve();s.onerror=()=>reject(new Error("Could not load required script."));document.head.appendChild(s);});}
-async function ensureSupabase(){if(!window.supabase) await loadScriptOnce("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"); if(!sb) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); return sb;}
+function loadScriptOnce(src){return new Promise((resolve,reject)=>{
+  if(window.supabase&&src.includes('supabase')) return resolve();
+  const existing=[...document.scripts].find(s=>s.src===src);
+  if(existing){
+    const timer=setTimeout(()=>reject(new Error('Supabase library took too long to load. Please refresh the page.')),12000);
+    existing.addEventListener('load',()=>{clearTimeout(timer);resolve()},{once:true});
+    existing.addEventListener('error',()=>{clearTimeout(timer);reject(new Error('Could not load Supabase library.'))},{once:true});
+    return;
+  }
+  const s=document.createElement('script');
+  s.src=src;s.async=true;
+  const timer=setTimeout(()=>reject(new Error('Supabase library took too long to load. Please refresh the page.')),12000);
+  s.onload=()=>{clearTimeout(timer);resolve()};
+  s.onerror=()=>{clearTimeout(timer);reject(new Error('Could not load Supabase library.'))};
+  document.head.appendChild(s);
+});}
+async function ensureSupabase(){
+  if(!window.supabase) await loadScriptOnce('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+  if(!window.supabase) throw new Error('Supabase library is not available. Please refresh the page.');
+  if(!sb) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  return sb;
+}
 async function ensureQRCode(){if(!window.QRCode) await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"); return window.QRCode;}
 let session = null;
 const BRANCHES = ["Katrina's 1","Katrina's Bites","Katrinas 3","Katrina's Grill","Katrina's Kambingan","D' Sisters","Jeoff Consumer Goods Trading","Jeoff Laundry","K- Corner","Comissary"];
@@ -675,9 +686,9 @@ function renderAuth(){
 let authRole='supervisor';
 
 async function loginAs(requestedRole){
-  const emailEl=requestedRole==='boss'?document.getElementById('ownerEmail'):document.getElementById('supervisorEmail');
-  const passEl=requestedRole==='boss'?document.getElementById('ownerPassword'):document.getElementById('supervisorPassword');
-  const m=document.getElementById(requestedRole==='boss'?'ownerMsg':'supervisorMsg');
+  const emailEl=document.getElementById('loginEmail');
+  const passEl=document.getElementById('loginPassword');
+  const m=document.getElementById('loginMsg');
   const email=emailEl.value.trim(), password=passEl.value;
   if(!email||!password){m.innerHTML='<span class="bad">Enter email and password.</span>';return;}
   m.textContent='Signing in…';
@@ -712,9 +723,9 @@ async function loginAs(requestedRole){
 }
 
 async function signupAsSupervisor(){
-  const email=document.getElementById('supervisorEmail').value.trim();
-  const password=document.getElementById('supervisorPassword').value;
-  const m=document.getElementById('supervisorMsg');
+  const email=document.getElementById('loginEmail').value.trim();
+  const password=document.getElementById('loginPassword').value;
+  const m=document.getElementById('loginMsg');
   if(!email||password.length<6){m.innerHTML='<span class="bad">Enter an email and a password with at least 6 characters.</span>';return;}
   m.textContent='Creating account…';
   const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'supervisor'}}});
@@ -724,8 +735,8 @@ async function signupAsSupervisor(){
 }
 
 async function resendSupervisorConfirmation(){
-  const email=document.getElementById('supervisorEmail').value.trim();
-  const m=document.getElementById('supervisorMsg');
+  const email=document.getElementById('loginEmail').value.trim();
+  const m=document.getElementById('loginMsg');
   if(!email){m.innerHTML='<span class="bad">Enter your supervisor email first.</span>';return;}
   m.textContent='Sending confirmation email…';
   const {error}=await sb.auth.resend({type:'signup',email});
