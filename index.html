@@ -121,7 +121,7 @@ body.compact-tables table td{font-size:.9rem}
 </head>
 <body>
 <div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device. Supervisor Assist does not use GPS.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate">
-  <div style="width:min(900px,100%);display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
+  <div style="width:min(430px,100%);display:block">
     <div class="login">
       <div style="font-size:34px">🔐</div>
       <h2>Supervisor Sign In</h2>
@@ -133,13 +133,7 @@ body.compact-tables table td{font-size:.9rem}
       <button onclick="resendSupervisorConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
       <div id="supervisorMsg" class="authmsg small"></div>
     </div>
-    <div class="login">
-      <div style="font-size:34px">👑</div>
-      <h2>Employer / Owner</h2>
-      <p class="muted">Read-only employer access. This opens a separate employer page.</p>
-      <button onclick="location.href='owner.html'">👑 Open Employer Login</button>
-      <p class="muted small">Employer cannot edit, delete, or add attendance records.</p>
-    </div></div></div>
+</div></div>
 <header>
 <button class="logout" onclick="logout()">Log Out</button><span style="vertical-align:middle"><h2 style="display:inline">Katrinas Digital Attendance</h2><div>Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div></span>
 </header>
@@ -751,7 +745,7 @@ async function api(path, opts={}){
   if(!r.ok) throw new Error((body&&body.message)||body?.hint||body?.details||("HTTP "+r.status));
   return body;
 }
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
 function localDateString(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;} function localMonthString(d=new Date()){return localDateString(d).slice(0,7);} const today=()=>localDateString();
 
 async function loadBranches(){
