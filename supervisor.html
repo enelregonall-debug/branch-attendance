@@ -720,6 +720,16 @@ async function resendSupervisorConfirmation(){
 
 async function logout(){authToken='';session=null;authRole='supervisor';localStorage.removeItem('kda_supervisor_token');renderAuth();}
 
+async function publicFetch(path, opts={}){
+  const headers={
+    "apikey":SUPABASE_KEY,
+    "Authorization":"Bearer "+SUPABASE_KEY,
+    "Accept":"application/json",
+    ...(opts.headers||{})
+  };
+  return fetch(API+path,{...opts,headers});
+}
+
 async function api(path, opts={}){
   const headers = {
     "apikey": SUPABASE_KEY,
