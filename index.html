@@ -679,14 +679,17 @@ async function login(){
     m.innerHTML='<span class="bad">❌ '+esc(msg)+'</span>';return;
   }
   session=data.session;
-  const role=session?.user?.user_metadata?.role||'supervisor';
-  authRole=role==='boss'?'boss':'supervisor';
-  if((authRole==='boss' && role!=='boss') || (authRole==='supervisor' && role==='boss')){
+  const signedInRole=session?.user?.user_metadata?.role||'supervisor';
+  const requestedRole=authRole==='boss'?'boss':'supervisor';
+  if((requestedRole==='boss' && signedInRole!=='boss') || (requestedRole==='supervisor' && signedInRole==='boss')){
+    const expected=requestedRole==='boss'?'Boss / Owner':'Supervisor';
     await sb.auth.signOut();
     session=null;
-    m.innerHTML='<span class="bad">❌ Wrong account type. Please use the '+(authRole==='boss'?'Boss / Owner':'Supervisor')+' account.</span>';
+    authRole=requestedRole;
+    m.innerHTML='<span class="bad">❌ Wrong account type. Please use the '+expected+' account.</span>';
     return;
   }
+  authRole=signedInRole==='boss'?'boss':'supervisor';
   renderAuth(); syncImportedDailyRates(); page("dashboard");
 }
 async function resendConfirmation(){
