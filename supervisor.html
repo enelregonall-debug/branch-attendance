@@ -327,8 +327,7 @@ async function loadAttendance(){
     document.getElementById("attRefresh").onclick=loadAttendance;
     date.onchange=loadAttendance; document.getElementById("attBranchFilter").onchange=loadAttendance;
     await fetchAttendance();
-    await loadManualAttendance();
-  }catch(e){status.textContent="Could not load attendance: "+(e?.message||e);wrap.innerHTML=""}
+}catch(e){status.textContent="Could not load attendance: "+(e?.message||e);wrap.innerHTML=""}
 }
 async function fetchAttendance(){
   const status=document.getElementById("attStatus"), wrap=document.getElementById("attTableWrap");
