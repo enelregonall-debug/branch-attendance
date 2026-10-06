@@ -7,7 +7,7 @@
 <title>Katrinas Digital Attendance — Employer</title>
 <style>
 :root{--ink:#172033;--gold:#d6a84f;--line:#e6eaf0;--muted:#667085;--red:#8d1023}
-*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:14px}
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font-family:'Book Antiqua',Palatino,serif;font-size:14px}
 header{background:linear-gradient(135deg,#8d1023,#b51f32);color:#fff;padding:22px}
 main{max-width:1200px;margin:auto;padding:20px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 8px 25px #17203312}
 .login{max-width:430px;margin:12vh auto;background:#fff;padding:28px;border-radius:18px;box-shadow:0 20px 50px #17203322}
@@ -108,7 +108,7 @@ function show(x){
  <div class="card">Timed In<div class="stat">${atts.filter(a=>a.attendance_date===today()&&a.time_in&&!a.time_out).length}</div></div>
  <div class="card">Completed<div class="stat">${atts.filter(a=>a.attendance_date===today()&&a.time_in&&a.time_out).length}</div></div>
  </div></div><div class="card"><b>Read-only mode</b><p class="muted">Employer account can view the central attendance records but cannot change them.</p></div>`;
- if(x==='employees') app.innerHTML=`<div class="card"><h2>Employees</h2><table><thead><tr><th>EMP ID</th><th>NAME</th><th>POSITION</th><th>BRANCH</th><th>DAILY RATE</th><th>STATUS</th></tr></thead><tbody>${employees.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(e.position)}</td><td>${esc(bname(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toFixed(2)}</td><td>${e.active?'Active':'Inactive'}</td></tr>`).join('')}</tbody></table></div>`;
+ if(x==='employees') app.innerHTML=`<div class="card"><h2>Employees</h2><table><thead><tr><th>EMP ID</th><th>NAME</th><th>POSITION</th><th>BRANCH</th><th>DAILY RATE</th><th>STATUS</th></tr></thead><tbody>${employees.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(e.position)}</td><td>${esc(bname(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${e.active?'Active':'Inactive'}</td></tr>`).join('')}</tbody></table></div>`;
  if(x==='attendance') app.innerHTML=`<div class="card"><h2>Attendance</h2><label>Month <input id="am" type="month" value="${today().slice(0,7)}" onchange="renderAtt()"></label><div id="attTable"></div></div>`,renderAtt();
  if(x==='summary') app.innerHTML=`<div class="card"><h2>Monthly Summary</h2><label>Month <input id="sm" type="month" value="${new Date().toISOString().slice(0,7)}" onchange="renderSum()"></label><div id="sumTable"></div></div>`,renderSum();
 }
@@ -123,7 +123,7 @@ function renderSum(){
   const mine=atts.filter(a=>String(a.employee_id)===String(e.id)&&a.attendance_date?.startsWith(m));
   let present=0; mine.forEach(a=>{const s=(a.status||'').toLowerCase();if(s.includes('half'))present+=.5;else if(a.time_in||s==='present'||s==='approved')present+=1});
   const absent=Math.max(0,elapsed-present),pay=present*Number(e.daily_rate||0);
-  return `<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(bname(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toFixed(2)}</td><td>${present}</td><td>${elapsed?absent:'—'}</td><td>₱${pay.toFixed(2)}</td></tr>`;
+  return `<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(bname(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toFixed(2)}</td><td>${present}</td><td>${elapsed?absent:'—'}</td><td>₱${pay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`;
  }).join('');
  document.getElementById('sumTable').innerHTML='<table><thead><tr><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>DAILY RATE</th><th>TOTAL PRESENT</th><th>TOTAL ABSENT</th><th>ESTIMATED PAY</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
