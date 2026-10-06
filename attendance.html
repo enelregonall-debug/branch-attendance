@@ -66,7 +66,7 @@ function successConfirm(type,e){
   document.getElementById('successOk').onclick=()=>box.remove();
 }
 let assistSession=null;
-async function api(path,opt={}){const authToken=assistSession?.access_token||KEY;const r=await fetch(API+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+authToken,'Content-Type':'application/json',...(opt.headers||{})}});if(!r.ok){let x='HTTP '+r.status;try{const j=await r.json();x=j.message||j.details||x}catch{};throw Error(x)}return r}
+async function api(path,opt={}){const authToken=KEY;const r=await fetch(API+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+authToken,'Content-Type':'application/json',...(opt.headers||{})}});if(!r.ok){let x='HTTP '+r.status;try{const j=await r.json();x=j.message||j.details||x}catch{};throw Error(x)}return r}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function esc(s){return String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))}
 function dist(a,b,c,d){const R=6371000,p=Math.PI/180,A=(c-a)*p,B=(d-b)*p,x=Math.sin(A/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(B/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
@@ -105,7 +105,8 @@ async function supervisorAssistLogin(){
   const data=await res.json();
   if(!res.ok||!data.access_token) throw new Error(data.error_description||data.msg||'Supervisor login failed.');
   assistSession=data;
-  const rows=await api('/employees?active=eq.true&or=(branch_id.eq.'+Number(branch.id)+',branch_id.is.null)&select=id,employee_code,full_name,branch_id&order=full_name.asc');
+  const all=await api('/employees?active=eq.true&select=id,employee_code,full_name,branch_id&order=full_name.asc');
+  const rows=all.filter(e=>e.branch_id==null||String(e.branch_id)===String(branch.id));
   if(!rows.length)throw new Error('No active employees are assigned to this branch.');
   document.getElementById('assistEmp').innerHTML=rows.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
   document.getElementById('assistLogin').style.display='none';document.getElementById('assistPanel').style.display='block';
@@ -128,7 +129,7 @@ async function supervisorAssistRecord(type){
    if(existing[0].time_out)throw new Error(e.full_name+' already has TIME OUT today.');
    await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({time_out:now})});
   }
-  m.innerHTML='<span class="ok">✅ '+type.toUpperCase()+' successful for '+esc(e.full_name)+'.</span>';
+  m.innerHTML='<span class="ok">✅ '+type.toUpperCase()+' successful for '+esc(e.full_name)+'.</span>'; successConfirm(type,e);
  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
 }
 async function supervisorAssistLogout(){await closeAssist();openAssist();document.getElementById('assistMsg').textContent='Supervisor session finished.'}
