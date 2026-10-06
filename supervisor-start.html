@@ -145,13 +145,26 @@ async function buildSummary(){
  const emps=employees.filter(e=>e.active!==false&&(!b||String(e.branch_id)===String(b)));
  document.getElementById("sumTable").innerHTML='<table class="sticky"><thead><tr><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>DAILY RATE</th><th>TOTAL PRESENT</th><th>TOTAL ABSENT</th><th>ESTIMATED PAY</th></tr></thead><tbody>'+emps.map(e=>{const set=counts[e.id]||new Set();let present=0;for(const d of set){const day=Number(d.slice(8,10));if(day<=elapsed)present++}const absent=Math.max(0,elapsed-present);const pay=present*Number(e.daily_rate||0);return '<tr><td>'+esc(e.employee_code)+'</td><td>'+esc(e.full_name)+'</td><td>'+esc(branchName(e.branch_id))+'</td><td>'+money(e.daily_rate)+'</td><td>'+present+'</td><td>'+absent+'</td><td>'+money(pay)+'</td></tr>'}).join("")+'</tbody></table><p class="muted small">31-day payroll basis: past dates are counted; future dates show no absence. Estimated Pay = Present × Daily Rate.</p>';
 }
+async function openBackOffice(){
+ document.getElementById("login").classList.add("hidden");
+ document.getElementById("app").classList.remove("hidden");
+ document.getElementById("dashboard").innerHTML='<div class="card"><h2>Dashboard</h2><p class="muted">Loading your Back Office…</p></div>';
+ try{await loadAll()}catch(e){
+  console.error(e);
+  document.getElementById("dashboard").innerHTML='<div class="card"><h2>Dashboard</h2><p class="bad">Back Office opened, but data could not load yet.</p><button onclick="openBackOffice()">Retry</button></div>';
+ }
+}
 document.getElementById("loginBtn").onclick=async()=>{
- const m=document.getElementById("loginMsg"),email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
- if(!email||!password){msg(m,"Enter email and password.");return}m.textContent="Signing in…";
- const r=await sb.auth.signInWithPassword({email,password});if(r.error){msg(m,r.error.message);return}
- const s=await getSession();if(!s){msg(m,"No active session.");return}
- document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");await loadAll();
+ const btn=document.getElementById("loginBtn"),m=document.getElementById("loginMsg"),email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
+ if(!email||!password){msg(m,"Enter email and password.");return}
+ btn.disabled=true;btn.textContent="SIGNING IN…";m.textContent="Checking account…";
+ try{
+  const r=await sb.auth.signInWithPassword({email,password});
+  if(r.error){msg(m,r.error.message);return}
+  await openBackOffice();
+ }catch(e){msg(m,e.message||"Login failed.");}
+ finally{btn.disabled=false;btn.textContent="SIGN IN";}
 };
-(async()=>{try{const s=await getSession();if(s){document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");await loadAll()}}catch(e){console.error(e)}})();
+(async()=>{try{const s=await getSession();if(s)await openBackOffice()}catch(e){console.error(e)}})();
 </script>
 </body></html>
