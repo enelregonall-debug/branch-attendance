@@ -201,7 +201,19 @@ async function render(page){
       <div id="manualExisting" class="panel"></div>`;
     await loadManualAttendancePage();
   }else if(page==="monthly"){
-    content.innerHTML=`<h1 class="page-title">Monthly Summary</h1><p class="page-sub">Present, absent and estimated pay.</p><div class="panel">Monthly Summary module — next step.</div>`;
+    content.innerHTML=`
+      <h1 class="page-title">Monthly Summary</h1>
+      <p class="page-sub">Monthly attendance summary — 31 scheduled days.</p>
+      <div class="panel">
+        <div class="att-tools">
+          <input id="msMonth" type="month">
+          <select id="msBranch"><option value="">All Branches</option></select>
+          <button id="msRefresh" class="refresh">Refresh</button>
+        </div>
+        <div id="msStatus" style="color:var(--muted)">Loading monthly summary…</div>
+      </div>
+      <div id="msTableWrap" class="att-table-wrap"></div>`;
+    await loadMonthlySummary();
   }else{
     content.innerHTML=`
       <h1 class="page-title">Custom</h1>
@@ -558,6 +570,60 @@ function printOneQR(id){
   const w=window.open("","_blank");
   w.document.write("<!doctype html><html><head><title>Branch QR</title><style>body{font-family:Arial;text-align:center;padding:30px}.qr{margin:auto}button{padding:10px 18px}</style></head><body>"+card.outerHTML+"<script>window.onload=()=>setTimeout(()=>window.print(),400)<\\/script></body></html>");
   w.document.close();
+}
+async function loadMonthlySummary(){
+  const monthEl=document.getElementById("msMonth"), branchEl=document.getElementById("msBranch");
+  const status=document.getElementById("msStatus"), wrap=document.getElementById("msTableWrap");
+  if(!monthEl||!branchEl)return;
+  monthEl.value=monthEl.value||phDate().slice(0,7);
+  try{
+    const [{data:employees,error:ee},{data:branches,error:be}]=await Promise.all([
+      sb.from("employees").select("id,employee_code,full_name,branch_id,daily_rate,active").eq("active",true).order("employee_code"),
+      sb.from("branches").select("id,name").order("name")
+    ]);
+    if(ee)throw ee;if(be)throw be;
+    const bs=branches||[], emps=employees||[];
+    branchEl.innerHTML='<option value="">All Branches</option><option value="any">Any Branch</option>'+bs.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
+    const selected=branchEl.value||"";
+    await fetchMonthlySummary();
+    monthEl.onchange=fetchMonthlySummary; branchEl.onchange=fetchMonthlySummary;
+    document.getElementById("msRefresh").onclick=fetchMonthlySummary;
+    async function fetchMonthlySummary(){
+      const month=monthEl.value||phDate().slice(0,7), filter=branchEl.value||"";
+      status.textContent="Loading monthly summary…"; wrap.innerHTML="";
+      const [y,m]=month.split("-").map(Number), days=new Date(y,m,0).getDate();
+      const {data:att,error:ae}=await sb.from("attendance").select("employee_id,attendance_date,time_in,time_out").gte("attendance_date",month+"-01").lte("attendance_date",month+"-"+String(days).padStart(2,"0"));
+      if(ae)throw ae;
+      const rows=(emps.filter(e=>{
+        const bid=String(e.branch_id??"");
+        return !filter||(filter==="any"?bid==="":bid===filter);
+      })).map(e=>{
+        const mine=(att||[]).filter(a=>String(a.employee_id)===String(e.id));
+        const daily={}; mine.forEach(a=>{daily[a.attendance_date]=a});
+        let present=0;
+        for(let d=1;d<=days;d++){
+          const key=month+"-"+String(d).padStart(2,"0"), a=daily[key];
+          if(a?.time_in&&a?.time_out){
+            const tin=new Date(a.time_in), tout=new Date(a.time_out);
+            const hours=(tout-tin)/3600000;
+            present += hours>0 && hours<=6 ? 0.5 : 1;
+          }else if(a?.time_in){ present += 1; }
+        }
+        const absent=Math.max(0,31-present);
+        const pay=Number(e.daily_rate||0)*present;
+        return {e,present,absent,pay};
+      });
+      status.textContent=rows.length+" employee(s) shown.";
+      wrap.innerHTML=`
+        <table class="att-table" style="min-width:1050px">
+          <thead><tr><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>SCHEDULED DAYS</th><th>TOTAL PRESENT</th><th>TOTAL ABSENT</th><th>ESTIMATED PAY</th></tr></thead>
+          <tbody>${rows.map(r=>{
+            const b=bs.find(x=>String(x.id)===String(r.e.branch_id));
+            return '<tr><td><b>'+escText(r.e.employee_code)+'</b></td><td>'+escText(r.e.full_name)+'</td><td>'+escText(b?.name||"Any Branch")+'</td><td><b>31</b></td><td><b>'+r.present+'</b></td><td><b>'+r.absent+'</b></td><td><b>₱'+r.pay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})+'</b></td></tr>';
+          }).join("")}</tbody>
+        </table>`;
+    }
+  }catch(e){status.textContent="Could not load monthly summary: "+(e?.message||e)}
 }
 async function loadDashboard(){
   const status=document.getElementById("dashStatus");
