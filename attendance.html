@@ -101,9 +101,10 @@ async function supervisorAssistLogin(){
  if(!email||!password){m.innerHTML='<span class="bad">Enter Supervisor email and password.</span>';return}
  m.textContent='Signing in…';
  try{
-  const s=await loadSupabase(); const client=s.createClient('https://ktrrjldiniwqryuojjnq','sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK');
-  const {data,error}=await client.auth.signInWithPassword({email,password});
-  if(error)throw error; assistSession=data.session;
+  const res=await fetch('https://ktrrjldiniwqryuojjnq.supabase.co/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const data=await res.json();
+  if(!res.ok||!data.access_token) throw new Error(data.error_description||data.msg||'Supervisor login failed.');
+  assistSession=data;
   const rows=await api('/employees?active=eq.true&or=(branch_id.eq.'+Number(branch.id)+',branch_id.is.null)&select=id,employee_code,full_name,branch_id&order=full_name.asc');
   if(!rows.length)throw new Error('No active employees are assigned to this branch.');
   document.getElementById('assistEmp').innerHTML=rows.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join('');
