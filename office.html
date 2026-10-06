@@ -40,8 +40,13 @@ window.quickLogin=async function(role){
     const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
     const {error}=await client.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
     if(error) throw error;
-    if(m)m.innerHTML='<span class="ok">✅ Login successful. Opening Back Office…</span>';
-    location.reload();
+    session=data.session || {access_token:data.access_token,user:data.user};
+    authRole=actual==='boss'?'boss':'supervisor';
+    if(m)m.innerHTML='<span class="ok">✅ Login successful. Loading Back Office…</span>';
+    const gate=document.getElementById('authGate');
+    if(gate) gate.style.display='none';
+    try{ await cacheBranchList(); }catch(_){}
+    try{ if(authRole!=='boss') syncImportedDailyRates(); }catch(_){}
   }catch(e){
     if(m)m.innerHTML='<span class="bad">❌ '+String(e.message||e).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]))+'</span>';
     if(button){button.disabled=false;button.textContent=button.dataset.oldText||'Sign in';}
@@ -717,7 +722,8 @@ async function initAuth(){
     const {data}=await sb.auth.getSession();
     session=data.session;
     if(!session){
-      location.replace('./login.html');
+      const gate=document.getElementById('authGate');
+      if(gate) gate.style.display='flex';
       return;
     }
     authRole=session.user?.user_metadata?.role==='boss'?'boss':'supervisor';
