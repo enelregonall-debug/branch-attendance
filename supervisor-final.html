@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Katrinas Digital Attendance — Supervisor</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:"Book Antiqua",Palatino,Georgia,serif;background:#f5f7fb;color:#172033}
+header{background:linear-gradient(135deg,#8d1023,#b51f32 65%,#d02d42);color:#fff;padding:22px 20px}
+main{max-width:1180px;margin:auto;padding:24px 16px}
+.card{background:#fff;border:1px solid #e6eaf0;border-radius:16px;padding:22px;margin-bottom:16px;box-shadow:0 10px 30px rgba(23,32,51,.08)}
+.login{width:min(430px,100%)}
+#loginGate{position:fixed;inset:0;background:linear-gradient(135deg,#eef2f7,#f8fafc);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+input,button{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:1px solid #d7dce5;font:inherit}
+button{background:#172033;color:#fff;border:0;cursor:pointer;font-weight:700}
+button:disabled{opacity:.6;cursor:not-allowed}
+.muted{color:#667085}.bad{color:#b42318;font-weight:700}.ok{color:#087443;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.stat{font-size:30px;font-weight:800;margin-top:6px}
+nav{background:#fff;border-bottom:1px solid #e6eaf0;padding:10px 14px;display:none;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+nav button{width:auto;margin:0}
+.logout{float:right;width:auto;background:#fff;color:#172033}
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="card login">
+    <h2 style="margin-top:0">Katrinas Digital Attendance</h2>
+    <h3>Supervisor Sign In</h3>
+    <p class="muted">Supervisor back-office access</p>
+    <input id="email" type="email" placeholder="Supervisor email" autocomplete="username">
+    <input id="password" type="password" placeholder="Supervisor password" autocomplete="current-password">
+    <button id="signIn" onclick="signIn()">🔐 Sign In</button>
+    <div id="message" class="muted"></div>
+  </div>
+</div>
+
+<header id="header" style="display:none">
+  <button class="logout" onclick="logout()">Log Out</button>
+  <h2 style="margin:0">Katrinas Digital Attendance</h2>
+  <div>Supervisor Browser</div>
+</header>
+
+<nav id="nav">
+  <button onclick="showDashboard()">Dashboard</button>
+</nav>
+
+<main id="app" style="display:none"></main>
+
+<script>
+const SUPABASE_URL="https://ktrrjldiniwqryuojjnq.supabase.co";
+const SUPABASE_KEY="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
+const API=SUPABASE_URL+"/rest/v1";
+let token="";
+
+function msg(text,cls="muted"){
+  const el=document.getElementById("message");
+  el.className=cls;
+  el.textContent=text;
+}
+
+async function supabaseAuth(email,password){
+  const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{
+    method:"POST",
+    headers:{"apikey":SUPABASE_KEY,"Content-Type":"application/json"},
+    body:JSON.stringify({email,password})
+  });
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error_description||d.msg||d.message||"Invalid login credentials.");
+  if(!d.access_token) throw new Error("No access token was returned.");
+  if(d.user?.user_metadata?.role==="boss") throw new Error("Please use the Employer Browser for the Employer account.");
+  return d;
+}
+
+async function api(path){
+  const r=await fetch(API+path,{
+    headers:{
+      "apikey":SUPABASE_KEY,
+      "Authorization":"Bearer "+token,
+      "Accept":"application/json"
+    }
+  });
+  const text=await r.text();
+  let d;try{d=text?JSON.parse(text):null}catch{d=text}
+  if(!r.ok) throw new Error((d&&d.message)||d?.hint||d?.details||("HTTP "+r.status));
+  return d;
+}
+
+async function signIn(){
+  const email=document.getElementById("email").value.trim();
+  const password=document.getElementById("password").value;
+  const btn=document.getElementById("signIn");
+  if(!email||!password){msg("Enter your email and password.","bad");return;}
+  btn.disabled=true;
+  msg("Signing in…");
+  try{
+    const d=await supabaseAuth(email,password);
+    token=d.access_token;
+    document.getElementById("loginGate").style.display="none";
+    document.getElementById("header").style.display="block";
+    document.getElementById("nav").style.display="flex";
+    document.getElementById("app").style.display="block";
+    await showDashboard();
+  }catch(e){
+    token="";
+    msg(e.message||"Login failed.","bad");
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+async function showDashboard(){
+  if(!token)return;
+  const app=document.getElementById("app");
+  app.innerHTML='<div class="card">Loading Dashboard…</div>';
+  try{
+    const [employees,attendance,branches]=await Promise.all([
+      api("/employees?select=id&active=eq.true"),
+      api("/attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out&attendance_date=eq."+today()+"&order=time_in.desc"),
+      api("/branches?select=id,name&order=id.asc")
+    ]);
+    app.innerHTML=
+      '<div class="card"><h2>Dashboard</h2>'+
+      '<div class="grid">'+
+      '<div class="card"><b>Active Employees</b><div class="stat">'+employees.length+'</div></div>'+
+      '<div class="card"><b>Attendance Today</b><div class="stat">'+attendance.length+'</div></div>'+
+      '<div class="card"><b>Timed In</b><div class="stat">'+attendance.filter(x=>x.time_in&&!x.time_out).length+'</div></div>'+
+      '<div class="card"><b>Completed</b><div class="stat">'+attendance.filter(x=>x.time_in&&x.time_out).length+'</div></div>'+
+      '</div></div>'+
+      '<div class="card"><h3>Connection</h3><p class="ok">● Connected to Supabase</p><p class="muted">'+branches.length+' branches loaded.</p></div>';
+  }catch(e){
+    app.innerHTML='<div class="card"><h2>Dashboard</h2><p class="bad">Dashboard data failed to load.</p><p>'+escapeHtml(e.message||e)+'</p><button onclick="showDashboard()">Retry</button></div>';
+  }
+}
+
+function today(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+}
+function logout(){
+  token="";
+  document.getElementById("loginGate").style.display="flex";
+  document.getElementById("header").style.display="none";
+  document.getElementById("nav").style.display="none";
+  document.getElementById("app").style.display="none";
+  document.getElementById("email").focus();
+  msg("Logged out.");
+}
+document.getElementById("password").addEventListener("keydown",e=>{if(e.key==="Enter")signIn()});
+</script>
+</body>
+</html>
