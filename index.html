@@ -159,10 +159,6 @@ body.compact-tables table td{font-size:.9rem}
 (function(){
   try{
     const q=new URLSearchParams(location.search);
-    if(!q.has('branchId') && !q.has('branch') && !localStorage.getItem('sb-ktrrjldiniwqryuojjnq-auth-token') && !sessionStorage.getItem('kda_access_token')){
-      location.replace('./supervisor.html');
-      return;
-    }
     if(q.has('branchId') || q.has('branch')){
       const qs=location.search;
       const target=new URL('./employee.html',location.href);
@@ -648,16 +644,6 @@ window.addEventListener('online',async()=>{await cacheBranchList();await syncQue
 async function initAuth(){
   if(isEmployeeMode()){await initEmployeeMode();return;}
   await ensureSupabase();
-  // Restore the standalone Supervisor login session before showing the login gate.
-  if(!session){
-    try{
-      const access=sessionStorage.getItem('kda_access_token');
-      const refresh=sessionStorage.getItem('kda_refresh_token');
-      if(access && refresh){
-        await sb.auth.setSession({access_token:access,refresh_token:refresh});
-      }
-    }catch(e){ console.warn('Supervisor session restore failed:',e); }
-  }
   await cacheBranchList();
   const {data}=await sb.auth.getSession();
   session=data.session;
