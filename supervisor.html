@@ -128,7 +128,7 @@ body.compact-tables table td{font-size:.9rem}
       <p class="muted">Full back-office access: employees, branches, QR, attendance, manual attendance and monthly summary.</p>
       <input id="supervisorEmail" type="email" placeholder="Supervisor email" autocomplete="username">
       <input id="supervisorPassword" type="password" placeholder="Supervisor password" autocomplete="current-password">
-      <button onclick="loginAs('supervisor')">🔐 Sign In as Supervisor</button>
+      <button id="supervisorLoginBtn" onclick="loginAs('supervisor')" disabled>🔐 Sign In as Supervisor</button>
       <button onclick="signupAsSupervisor()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button>
       <button onclick="resendSupervisorConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
       <div id="supervisorMsg" class="authmsg small"></div>
@@ -675,7 +675,20 @@ function renderAuth(){
 }
 let authRole='supervisor';
 
+let supervisorReady=false;
+async function supervisorBoot(){
+  try{
+    await ensureSupabase();
+    supervisorReady=true;
+    const b=document.getElementById('supervisorLoginBtn');
+    if(b){b.disabled=false;b.textContent='🔐 Sign In as Supervisor';}
+  }catch(e){
+    const m=document.getElementById('supervisorMsg');
+    if(m)m.innerHTML='<span class="bad">❌ Cannot load login service. Please refresh this page.</span>';
+  }
+}
 async function loginAs(requestedRole){
+  if(!supervisorReady){return;}
   const emailEl=document.getElementById('supervisorEmail');
   const passEl=document.getElementById('supervisorPassword');
   const m=document.getElementById('supervisorMsg');
@@ -1119,7 +1132,7 @@ async function csv(){
   const rows=[['DATE','EMP ID','NAME','BRANCH','TIME IN','TIME OUT'],...filtered.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||'Unknown',e?.full_name||'Unknown',branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():'',x.time_out?new Date(x.time_out).toLocaleString():'']})];
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\\n')],{type:'text/csv'}));a.download='attendance-'+month+(branch==='all'?'':'-'+String(branchName(branch)).replace(/[^a-z0-9]+/gi,'-'))+'.csv';a.click();
 }
-try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v=9').then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); initAuth();
+try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v=9').then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); supervisorBoot();
 </script>
 </body>
 </html>
