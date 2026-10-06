@@ -234,7 +234,7 @@ async function loadManualEmployees(){
   emp.innerHTML='<option value="">Loading Employee Names…</option>';
   if(!branch){emp.innerHTML='<option value="">Select Employee Name</option>';return}
   try{
-    const {data,error}=await sb.from("employees").select("id,employee_code,full_name,branch_id").eq("active",true).eq("branch_id",Number(branch)).order("full_name");
+    const {data,error}=await sb.from("employees").select("id,employee_code,full_name,branch_id").eq("active",true).or("branch_id.eq."+Number(branch)+",branch_id.is.null").order("full_name");
     if(error)throw error;
     emp.innerHTML='<option value="">Select Employee</option>'+(data||[]).map(e=>'<option value="'+escText(e.id)+'">'+escText(e.full_name)+' — '+escText(e.employee_code)+'</option>').join('');
     if(!data?.length)emp.innerHTML='<option value="">No active employees in this branch</option>';
@@ -416,7 +416,7 @@ async function loadEmployees(){
     employeeRows=emps||[];
     employeeBranches=branches||[];
     const bf=document.getElementById("empBranchFilter");
-    bf.innerHTML='<option value="">All Branches</option>'+employeeBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
+    bf.innerHTML='<option value="">All Branches</option><option value="any">Any Branch</option>'+employeeBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
     document.getElementById("empSearch").oninput=renderEmployeeTable;
     bf.onchange=renderEmployeeTable;
     document.getElementById("empRefresh").onclick=loadEmployees;
@@ -433,7 +433,7 @@ function renderEmployeeTable(){
   const rows=employeeRows.filter(e=>{
     const branchId=String(e.branch_id??"");
     const text=[e.employee_code,e.full_name,e.position].join(" ").toLowerCase();
-    return (!q||text.includes(q))&&(!branchFilter||branchId===branchFilter);
+    return (!q||text.includes(q))&&(!branchFilter||(branchFilter==="any"?branchId==="":branchId===branchFilter));
   });
   const status=document.getElementById("empStatus");
   const wrap=document.getElementById("empTableWrap");
