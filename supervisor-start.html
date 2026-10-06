@@ -84,7 +84,6 @@ async function dashboard(){
  '<div class="stat">Branches<b>'+branches.length+'</b></div>'+
  '<div class="stat">Present Today<b>'+present+'</b></div>'+
  '<div class="stat">Not Yet In<b>'+Math.max(0,employees.filter(e=>e.active!==false).length-present)+'</b></div></div></div>'+
- '<div class="card"><h3>Quick Actions</h3><div class="toolbar"><button onclick="nav("employees")">Employees</button><button onclick="nav("qr")">Branch QR</button><button onclick="nav("attendance")">Attendance Log</button><button onclick="nav("summary")">Monthly Summary</button></div></div>';
 }
 async function employeesPage(){
  const sec=document.getElementById("employees");
