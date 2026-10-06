@@ -198,6 +198,7 @@ async function syncImportedDailyRates(){
 }
 
 const API = SUPABASE_URL + "/rest/v1";
+const app = document.getElementById("app");
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
 let sb = null;
@@ -639,7 +640,10 @@ async function loginAs(requestedRole){
   const password=document.getElementById('supervisorPassword').value;
   const m=document.getElementById('supervisorMsg');
   const btn=document.getElementById('supervisorLoginBtn');
-  if(!email||!password){m.innerHTML='<span class="bad">Enter email and password.</span>';return;}
+  if(!email||!password){
+    m.innerHTML='<span class="bad">Enter email and password.</span>';
+    return;
+  }
   btn.disabled=true;
   m.textContent='Signing in…';
   try{
@@ -648,17 +652,24 @@ async function loginAs(requestedRole){
       headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
       body:JSON.stringify({email,password})
     });
-    const d=await r.json();
+    const d=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(d.error_description||d.msg||d.message||'Invalid login credentials');
+    if(!d.access_token) throw new Error('Supabase login succeeded but no access token was returned.');
     if(d.user?.user_metadata?.role==='boss') throw new Error('Please use the Employer login for this account.');
-    authToken=d.access_token||'';
-    if(!authToken) throw new Error('Login succeeded but no access token was returned.');
+    authToken=d.access_token;
     session={access_token:authToken,user:d.user||null};
     authRole='supervisor';
-    document.getElementById('authGate').style.display='none';
-    await page('dashboard');
+    m.textContent='Login successful. Loading Supervisor Dashboard…';
+    try{
+      await page('dashboard');
+      document.getElementById('authGate').style.display='none';
+    }catch(e){
+      throw new Error('Login succeeded, but Supervisor data could not load: '+(e.message||e));
+    }
   }catch(e){
-    authToken='';session=null;
+    authToken='';
+    session=null;
+    document.getElementById('authGate').style.display='flex';
     m.innerHTML='<span class="bad">❌ '+esc(e.message||e)+'</span>';
     btn.disabled=false;
   }
@@ -739,7 +750,10 @@ async function page(x){
   stop();
   app.innerHTML='<div class="card">Loading…</div>';
   try{await loadBranches(); await ({dashboard,employees,branchqrs,attendance,summary}[x])();}
-  catch(e){app.innerHTML='<div class="card"><span class="bad">❌ '+esc(e.message)+'</span><p class="muted">Check that your Supabase tables, RLS policies, Project URL and publishable key are correct.</p></div>';}
+  catch(e){
+  app.innerHTML='<div class="card"><span class="bad">❌ '+esc(e.message)+'</span><p class="muted">Supervisor login is valid, but the dashboard data request failed.</p></div>';
+  throw e;
+}
 }
 
 async function dashboard(){
