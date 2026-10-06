@@ -116,20 +116,26 @@ async function supervisorAssistLogin(){
 async function supervisorAssistRecord(type){
  const m=document.getElementById('assistMsg'),code=document.getElementById('assistEmp').value;
  try{
-  const rows=await api('/employees?employee_code=eq.'+encodeURIComponent(code)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
+  const er=await api('/employees?employee_code=eq.'+encodeURIComponent(code)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
+  const rows=await er.json();
   const e=rows[0]; if(!e)throw new Error('Employee not found.');
   if(e.branch_id!=null&&Number(e.branch_id)!==Number(branch.id))throw new Error('Employee is not assigned to this branch.');
-  const date=today(), existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(e.id)+'&attendance_date=eq.'+date+'&select=id,time_in,time_out'),now=new Date().toISOString();
+  const date=today();
+  const ar=await api('/attendance?employee_id=eq.'+encodeURIComponent(e.id)+'&attendance_date=eq.'+date+'&select=id,time_in,time_out');
+  const existing=await ar.json();
+  const now=new Date().toISOString();
   if(type==='in'){
    if(existing[0]?.time_in)throw new Error(e.full_name+' already has TIME IN today.');
-   await api('/attendance',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({employee_id:e.id,branch_id:branch.id,attendance_date:date,time_in:now})});
+   const sr=await api('/attendance',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({employee_id:e.id,branch_id:branch.id,attendance_date:date,time_in:now})});
+   if(!sr.ok)throw new Error('Could not save TIME IN.');
   }else{
    if(new Date().getHours()<12)throw new Error('TIME OUT is locked until 12:00 PM.');
    if(!existing[0]?.time_in)throw new Error(e.full_name+' has no TIME IN today.');
    if(existing[0].time_out)throw new Error(e.full_name+' already has TIME OUT today.');
-   await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({time_out:now})});
+   const sr=await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({time_out:now})});
+   if(!sr.ok)throw new Error('Could not save TIME OUT.');
   }
-  m.innerHTML='<span class="ok">✅ '+type.toUpperCase()+' successful for '+esc(e.full_name)+'.</span>'; successConfirm(type,e);
+  m.innerHTML='<span class="ok">✅ '+type.toUpperCase()+' successful for '+esc(e.full_name)+'.</span>';
  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
 }
 async function supervisorAssistLogout(){await closeAssist();openAssist();document.getElementById('assistMsg').textContent='Supervisor session finished.'}
