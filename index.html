@@ -1004,23 +1004,37 @@ async function loadManualEmployees(){
  const branch=document.getElementById('manualBranch')?.value||'all';
  try{
   const rows=await api('/employees?active=eq.true&select=id,employee_code,full_name,branch_id&order=full_name.asc');
-  const filtered=branch==='all'?rows:rows.filter(e=>String(e.branch_id)===String(branch));
-  sel.innerHTML=filtered.length?filtered.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join(''):'<option value="">No active employees in this branch</option>';
+  // Employees with no assigned branch are the Any Branch staff.
+  // When a real branch is selected, include them so the supervisor can record
+  // the actual branch where they worked today.
+  const filtered=branch==='all'?rows:rows.filter(e=>String(e.branch_id)===String(branch)||e.branch_id==null);
+  sel.innerHTML=filtered.length?filtered.map(e=>{
+    const any=e.branch_id==null?' — ANY BRANCH':'';
+    return '<option value="'+esc(e.id)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+any+'</option>';
+  }).join(''):'<option value="">No active employees in this branch</option>';
  }catch(e){sel.innerHTML='<option value="">Could not load employees</option>';}
 }
 function manualTypeChanged(){const t=document.getElementById('manualType')?.value;if(t==='half'){manualIn.value='08:00';manualOut.value='13:00'}else{manualIn.value='08:00';manualOut.value='17:00'}}
 function manualDateTime(date,time){return new Date(date+'T'+time+':00').toISOString()}
 async function saveManualAttendance(){
- const m=document.getElementById('manualMsg'),empId=document.getElementById('manualEmp')?.value,date=document.getElementById('manualDate')?.value,type=document.getElementById('manualType')?.value,tin=document.getElementById('manualIn')?.value,tout=document.getElementById('manualOut')?.value;
+ const m=document.getElementById('manualMsg'),empId=document.getElementById('manualEmp')?.value,date=document.getElementById('manualDate')?.value,type=document.getElementById('manualType')?.value,tin=document.getElementById('manualIn')?.value,tout=document.getElementById('manualOut')?.value,selectedBranch=document.getElementById('manualBranch')?.value||'all';
  if(!empId||!date||!tin||!tout){m.innerHTML='<span class="bad">Complete all fields.</span>';return}
  if(tout<=tin){m.innerHTML='<span class="bad">TIME OUT must be later than TIME IN.</span>';return}
  if(!confirm('Save manual '+(type==='half'?'HALF DAY':'FULL DAY')+' attendance for this employee?'))return;
  m.textContent='Saving…';
  try{
-  const rows=await api('/employees?id=eq.'+encodeURIComponent(empId)+'&active=eq.true&select=id,employee_code,full_name,branch_id'); const e=rows[0]; if(!e)throw new Error('Employee not found.');
+  const rows=await api('/employees?id=eq.'+encodeURIComponent(empId)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
+  const e=rows[0]; if(!e)throw new Error('Employee not found.');
+  // Any Branch employees have branch_id = null. For manual attendance,
+  // require the supervisor to choose the actual branch where they worked.
+  let attendanceBranch=e.branch_id;
+  if(attendanceBranch==null){
+    if(selectedBranch==='all') throw new Error('For an ANY BRANCH employee, please select the actual branch first.');
+    attendanceBranch=selectedBranch;
+  }
   const existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(empId)+'&attendance_date=eq.'+encodeURIComponent(date)+'&select=id');
-  const payload={employee_id:e.id,branch_id:e.branch_id,attendance_date:date,time_in:manualDateTime(date,tin),time_out:manualDateTime(date,tout)};
-  if(existing[0]) await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({branch_id:e.branch_id,time_in:payload.time_in,time_out:payload.time_out})});
+  const payload={employee_id:e.id,branch_id:attendanceBranch,attendance_date:date,time_in:manualDateTime(date,tin),time_out:manualDateTime(date,tout)};
+  if(existing[0]) await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({branch_id:attendanceBranch,time_in:payload.time_in,time_out:payload.time_out})});
   else await api('/attendance',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});
   m.innerHTML='<span class="ok">✅ Manual attendance saved for '+esc(e.full_name)+'.</span>';
   alert('✅ MANUAL ATTENDANCE SAVED\n'+e.full_name+'\n'+date+'\n'+(type==='half'?'HALF DAY':'FULL DAY'));
