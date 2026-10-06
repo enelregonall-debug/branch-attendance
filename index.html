@@ -120,7 +120,31 @@ body.compact-tables table td{font-size:.9rem}
 </style>
 </head>
 <body>
-<div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device. Supervisor Assist does not use GPS.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate"><div class="login"><h2 id="authTitle">🔐 Supervisor Login</h2><p id="authDesc" class="muted">Sign in to manage employees, branch QR codes, branch locations, and attendance.</p><input id="loginEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password"><button onclick="login()">Sign In</button><button id="createAccountBtn" onclick="signup()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button><button onclick="toggleBossLogin()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👑 Boss / Owner Login</button><button id="resendBtn" onclick="resendConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button><div id="authMsg" class="authmsg small"></div><p class="muted small">Uses Supabase Auth. Boss/Owner uses a separate account from Supervisor.</p></div></div>
+<div id="employeeGate" style="display:none;position:fixed;inset:0;background:#f4f6fa;z-index:10000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>📱 Employee Attendance</h2><p class="notice small">This phone can be registered to one employee. After registration, the employee name is locked to this phone. Daily attendance uses Branch QR + GPS.</p><p id="branchLabel" class="muted">Branch</p><label class="small"><b>Employee name</b></label><select id="empSelect" style="width:100%;margin:7px 0"></select><button id="registerPhoneBtn" onclick="registerThisPhone()">📱 Register This Phone</button><button id="attendanceStartBtn" onclick="employeeLogin()">✅ Continue to Attendance</button><button onclick="employeeSync()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Refresh Employee List</button><button onclick="openNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">👤 No Phone? Supervisor Assist</button><div id="empMsg" class="authmsg small"></div><p class="muted small"><b>Important:</b> One registered phone = one employee. An employee without a phone should not use another employee's registered phone.</p><p class="muted small">After one-time registration, daily attendance needs only the Branch QR and GPS. Attendance can be saved offline and synced when internet returns.</p></div></div><div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:#0007;z-index:12000;align-items:center;justify-content:center;padding:20px"><div class="login"><h2>👤 Supervisor-Assisted Attendance</h2><p class="muted small">For employees who do not have a phone. Use this only on a supervisor/branch device. Supervisor Assist does not use GPS.</p><input id="assistEmail" type="email" placeholder="Supervisor email" autocomplete="username"><input id="assistPassword" type="password" placeholder="Supervisor password" autocomplete="current-password"><button onclick="supervisorAssistLogin()">Supervisor Sign In</button><button onclick="closeNoPhoneAssist()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Cancel</button><div id="assistMsg" class="authmsg small"></div><div id="assistPanel" style="display:none"><label class="small"><b>Select employee</b></label><select id="assistEmp" style="width:100%;margin:7px 0"></select><div class="grid"><button onclick="supervisorAssistRecord('in')">TIME IN</button><button onclick="supervisorAssistRecord('out')">TIME OUT</button></div><button onclick="supervisorAssistLogout()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Finish Supervisor Session</button></div></div></div><div id="authGate">
+  <div style="width:min(900px,100%);display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
+    <div class="login">
+      <div style="font-size:34px">🔐</div>
+      <h2>Supervisor Sign In</h2>
+      <p class="muted">Full back-office access: employees, branches, QR, attendance, manual attendance and monthly summary.</p>
+      <input id="supervisorEmail" type="email" placeholder="Supervisor email" autocomplete="username">
+      <input id="supervisorPassword" type="password" placeholder="Supervisor password" autocomplete="current-password">
+      <button onclick="loginAs('supervisor')">🔐 Sign In as Supervisor</button>
+      <button onclick="signupAsSupervisor()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button>
+      <button onclick="resendSupervisorConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
+      <div id="supervisorMsg" class="authmsg small"></div>
+    </div>
+    <div class="login">
+      <div style="font-size:34px">👑</div>
+      <h2>Owner / Employer Sign In</h2>
+      <p class="muted">Read-only access for the employer. Attendance, employees and monthly summary can be viewed, but not edited.</p>
+      <input id="ownerEmail" type="email" placeholder="Owner / Employer email" autocomplete="username">
+      <input id="ownerPassword" type="password" placeholder="Owner / Employer password" autocomplete="current-password">
+      <button onclick="loginAs('boss')">👑 Sign In as Owner</button>
+      <div id="ownerMsg" class="authmsg small"></div>
+      <p class="muted small">Owner account is separate from the Supervisor account.</p>
+    </div>
+  </div>
+</div>
 <header>
 <button class="logout" onclick="logout()">Log Out</button><span style="vertical-align:middle"><h2 style="display:inline">Katrinas Digital Attendance</h2><div>Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div></span>
 </header>
@@ -640,7 +664,8 @@ function renderAuth(){
   if(session){
     gate.style.display="none";
     if(customize) customize.style.display=authRole==='boss'?'none':'';
-    syncImportedDailyRates();
+    // Owner is strictly read-only; never run the Supervisor daily-rate writeback.
+    if(authRole!=='boss') syncImportedDailyRates();
   } else {
     gate.style.display="flex";
     if(customize) customize.style.display='';
@@ -648,70 +673,65 @@ function renderAuth(){
   }
 }
 let authRole='supervisor';
-function toggleBossLogin(){
-  authRole=authRole==='boss'?'supervisor':'boss';
-  const title=document.getElementById('authTitle'), desc=document.getElementById('authDesc'), create=document.getElementById('createAccountBtn'), resend=document.getElementById('resendBtn');
-  if(authRole==='boss'){
-    title.textContent='👑 Boss / Owner Login';
-    desc.textContent='Sign in with the separate Boss/Owner account.';
-    document.getElementById('loginEmail').placeholder='Boss / Owner email';
-    create.textContent='Create Boss / Owner Account';
-    resend.style.display='none';
-  }else{
-    title.textContent='🔐 Supervisor Login';
-    desc.textContent='Sign in to manage employees, branch QR codes, branch locations, and attendance.';
-    document.getElementById('loginEmail').placeholder='Supervisor email';
-    create.textContent='Create Supervisor Account';
-    resend.style.display='';
-  }
-  document.getElementById('authMsg').textContent='';
-}
-async function login(){
-  const email=document.getElementById("loginEmail").value.trim();
-  const password=document.getElementById("loginPassword").value;
-  const m=document.getElementById("authMsg");
+
+async function loginAs(requestedRole){
+  const emailEl=requestedRole==='boss'?document.getElementById('ownerEmail'):document.getElementById('supervisorEmail');
+  const passEl=requestedRole==='boss'?document.getElementById('ownerPassword'):document.getElementById('supervisorPassword');
+  const m=document.getElementById(requestedRole==='boss'?'ownerMsg':'supervisorMsg');
+  const email=emailEl.value.trim(), password=passEl.value;
   if(!email||!password){m.innerHTML='<span class="bad">Enter email and password.</span>';return;}
-  m.textContent="Signing in…";
-  const {data,error}=await sb.auth.signInWithPassword({email,password});
-  if(error){
-    const msg=String(error.message||"");
-    if(/email not confirmed/i.test(msg)){m.innerHTML='<span class="bad">❌ Email not confirmed.</span><br><span class="muted small">Click “Resend Confirmation Email”, confirm it, then try Sign In again.</span>';return;}
-    m.innerHTML='<span class="bad">❌ '+esc(msg)+'</span>';return;
+  m.textContent='Signing in…';
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    if(error){
+      const msg=String(error.message||'');
+      if(/email not confirmed/i.test(msg)){
+        m.innerHTML='<span class="bad">❌ Email not confirmed.</span><br><span class="muted small">Confirm the email first, then sign in again.</span>';
+        return;
+      }
+      m.innerHTML='<span class="bad">❌ '+esc(msg)+'</span>';
+      return;
+    }
+    session=data.session;
+    const signedInRole=session?.user?.user_metadata?.role||'supervisor';
+    if((requestedRole==='boss' && signedInRole!=='boss') || (requestedRole==='supervisor' && signedInRole==='boss')){
+      const expected=requestedRole==='boss'?'Owner / Employer':'Supervisor';
+      await sb.auth.signOut();
+      session=null;
+      authRole=requestedRole;
+      m.innerHTML='<span class="bad">❌ Wrong account type. Please use the '+expected+' account.</span>';
+      return;
+    }
+    authRole=signedInRole==='boss'?'boss':'supervisor';
+    renderAuth();
+    await page('dashboard');
+  }catch(e){
+    m.innerHTML='<span class="bad">❌ '+esc(e.message||e)+'</span>';
   }
-  session=data.session;
-  const signedInRole=session?.user?.user_metadata?.role||'supervisor';
-  const requestedRole=authRole==='boss'?'boss':'supervisor';
-  if((requestedRole==='boss' && signedInRole!=='boss') || (requestedRole==='supervisor' && signedInRole==='boss')){
-    const expected=requestedRole==='boss'?'Boss / Owner':'Supervisor';
-    await sb.auth.signOut();
-    session=null;
-    authRole=requestedRole;
-    m.innerHTML='<span class="bad">❌ Wrong account type. Please use the '+expected+' account.</span>';
-    return;
-  }
-  authRole=signedInRole==='boss'?'boss':'supervisor';
-  renderAuth(); syncImportedDailyRates(); page("dashboard");
 }
-async function resendConfirmation(){
-  const email=document.getElementById("loginEmail").value.trim();
-  const m=document.getElementById("authMsg");
+
+async function signupAsSupervisor(){
+  const email=document.getElementById('supervisorEmail').value.trim();
+  const password=document.getElementById('supervisorPassword').value;
+  const m=document.getElementById('supervisorMsg');
+  if(!email||password.length<6){m.innerHTML='<span class="bad">Enter an email and a password with at least 6 characters.</span>';return;}
+  m.textContent='Creating account…';
+  const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'supervisor'}}});
+  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
+  if(data.session){session=data.session;authRole='supervisor';renderAuth();await page('dashboard');}
+  else m.innerHTML='<span class="ok">✅ Account created. Check your email for the confirmation link, then sign in.</span>';
+}
+
+async function resendSupervisorConfirmation(){
+  const email=document.getElementById('supervisorEmail').value.trim();
+  const m=document.getElementById('supervisorMsg');
   if(!email){m.innerHTML='<span class="bad">Enter your supervisor email first.</span>';return;}
-  m.textContent="Sending confirmation email…";
-  const {error}=await sb.auth.resend({type:"signup",email});
+  m.textContent='Sending confirmation email…';
+  const {error}=await sb.auth.resend({type:'signup',email});
   if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
   m.innerHTML='<span class="ok">✅ Confirmation email sent. Check Inbox and Spam/Junk.</span>';
 }
-async function signup(){
-  const email=document.getElementById("loginEmail").value.trim();
-  const password=document.getElementById("loginPassword").value;
-  const m=document.getElementById("authMsg");
-  if(!email||password.length<6){m.innerHTML='<span class="bad">Enter an email and a password with at least 6 characters.</span>';return;}
-  m.textContent="Creating account…";
-  const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:authRole}}});
-  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
-  if(data.session){session=data.session;renderAuth();page("dashboard");}
-  else m.innerHTML='<span class="ok">✅ Account created. Check your email for the confirmation link, then sign in.</span>';
-}
+
 async function logout(){await sb.auth.signOut();session=null;authRole='supervisor';renderAuth();}
 
 async function api(path, opts={}){
