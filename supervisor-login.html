@@ -616,6 +616,8 @@ async function syncQueue(){
 window.addEventListener('online',async()=>{await cacheBranchList();await syncQueue();if(employeeSession)renderEmployeeApp()});
 async function initAuth(){ supervisorBoot(); }
 
+function stop(){}
+
 function renderAuth(){
   const gate=document.getElementById('authGate');
   const customize=document.getElementById('customizeBtn');
