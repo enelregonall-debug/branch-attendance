@@ -107,8 +107,8 @@ function show(x){
  <div class="card">Completed<div class="stat">${atts.filter(a=>a.attendance_date===today()&&a.time_in&&a.time_out).length}</div></div>
  </div></div><div class="card"><b>Read-only mode</b><p class="muted">Employer account can view the central attendance records but cannot change them.</p></div>`;
  if(x==='employees') app.innerHTML=`<div class="card"><h2>Employees</h2><table><thead><tr><th>EMP ID</th><th>NAME</th><th>POSITION</th><th>BRANCH</th><th>DAILY RATE</th><th>STATUS</th></tr></thead><tbody>${employees.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(e.position)}</td><td>${esc(bname(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${e.active?'Active':'Inactive'}</td></tr>`).join('')}</tbody></table></div>`;
- if(x==='attendance') app.innerHTML=`<div class="card"><h2>Attendance</h2><label>Month <input id="am" type="month" value="${today().slice(0,7)}" onchange="renderAtt()"></label><div id="attTable"></div></div>`,renderAtt();
- if(x==='summary') app.innerHTML=`<div class="card"><h2>Monthly Summary</h2><label>Month <input id="sm" type="month" value="${new Date().toISOString().slice(0,7)}" onchange="renderSum()"></label><div id="sumTable"></div></div>`,renderSum();
+ if(x==='attendance') app.innerHTML=`<div class="card"><h2>Attendance</h2><label>Branch <select id="ab" onchange="renderAtt()"><option value="">All Branches</option>${branches.map(b=>'<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>').join('')}</select></label><label>Month <input id="am" type="month" value="${today().slice(0,7)}" onchange="renderAtt()"></label><div id="attTable"></div></div>`,renderAtt();
+ if(x==='summary') app.innerHTML=`<div class="card"><h2>Monthly Summary</h2><label>Branch <select id="sb" onchange="renderSum()"><option value="">All Branches</option>${branches.map(b=>'<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>').join('')}</select></label><label>Month <input id="sm" type="month" value="${new Date().toISOString().slice(0,7)}" onchange="renderSum()"></label><div id="sumTable"></div></div>`,renderSum();
 }
 function renderAtt(){
  const m=document.getElementById('am').value;
@@ -116,8 +116,8 @@ function renderAtt(){
  document.getElementById('attTable').innerHTML='<table><thead><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th></tr></thead><tbody>'+rows.map(a=>{const e=employees.find(x=>String(x.id)===String(a.employee_id));return `<tr><td>${formatDate(a.attendance_date)}</td><td>${esc(e?.employee_code)}</td><td>${esc(e?.full_name)}</td><td>${esc(bname(a.branch_id))}</td><td>${formatTime(a.time_in)}</td><td>${formatTime(a.time_out)}</td></tr>`}).join('')+'</tbody></table>';
 }
 function renderSum(){
- const m=document.getElementById('sm').value,days=new Date(Number(m.slice(0,4)),Number(m.slice(5,7)),0).getDate(),elapsed=m===new Date().toISOString().slice(0,7)?new Date().getDate():(m<new Date().toISOString().slice(0,7)?days:0);
- const rows=employees.filter(e=>e.active).map(e=>{
+ const m=document.getElementById('sm').value, branch=document.getElementById('sb')?.value||'',days=new Date(Number(m.slice(0,4)),Number(m.slice(5,7)),0).getDate(),elapsed=m===new Date().toISOString().slice(0,7)?new Date().getDate():(m<new Date().toISOString().slice(0,7)?days:0);
+ const rows=employees.filter(e=>e.active&&(!branch||String(e.branch_id)===String(branch))).map(e=>{
   const mine=atts.filter(a=>String(a.employee_id)===String(e.id)&&a.attendance_date?.startsWith(m));
   let present=0; mine.forEach(a=>{const s=(a.status||'').toLowerCase();if(s.includes('half'))present+=.5;else if(a.time_in||s==='present'||s==='approved')present+=1});
   const absent=Math.max(0,elapsed-present),pay=present*Number(e.daily_rate||0);
