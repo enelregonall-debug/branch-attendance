@@ -191,7 +191,7 @@ const BRANCH_CACHE='bratt_branch_cache_v2';
 const DEVICE_BIND='bratt_registered_phone_v1';
 let employeeSession=null, employeeBranch=null;
 
-function isEmployeeMode(){ const q=new URLSearchParams(location.search); return q.has('employee')||q.has('branch')||q.has('branchId'); }
+function isEmployeeMode(){ return false; }
 function getBranchToken(){ return new URLSearchParams(location.search).get('branch'); }
 function getBranchId(){ return new URLSearchParams(location.search).get('branchId'); }
 async function publicFetch(path, opts={}){
@@ -805,7 +805,7 @@ async function branchqrs(){
   await ensureQRCode();
   const rows=await api('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc');
   app.innerHTML='<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">'+rows.map(b=>'<div class="card center"><h3>'+esc(b.name)+'</h3><div id="bqr'+b.id+'" style="display:flex;justify-content:center"></div><p class="small "'+(b.latitude!=null?'ok':'bad')+'>'+(b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set')+'</p><button onclick="printBranchQR('+b.id+')">Print QR</button> <button onclick="setBranchLocation('+b.id+')" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button></div>').join('')+'</div></div>';
-  rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname.replace(/[^/]*$/,'employee.html')+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
+  rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
 }
 async function setBranchLocation(id){
   const b=branches.find(x=>Number(x.id)===Number(id));
@@ -980,68 +980,10 @@ async function attendance(){
   '<div class="grid"><label class="small"><b>Month</b><input id="attendanceMonth" type="month" value="'+monthVal+'" onchange="loadAttendanceMonth()" style="width:100%;margin-top:5px"></label>'+
   '<label class="small"><b>Branch</b><select id="attendanceBranch" onchange="loadAttendanceBranch()" style="width:100%;margin-top:5px"><option value="all" '+(branchVal==='all'?'selected':'')+'>All Branches</option>'+branches.map(b=>'<option value="'+b.id+'" '+(String(b.id)===String(branchVal)?'selected':'')+'>'+esc(b.name)+'</option>').join('')+'</select></label></div>'+
   '<p class="muted small">Attendance records are permanently saved in the central database. Select a month and branch to view the saved records.</p>'+
-  '<div class="card" style="margin-top:14px;border:2px solid #ead8da;background:#fffafa">
-<h3>📝 Manual Attendance — Supervisor</h3>
-<p class="muted small">Use this when an employee forgot to log in but was actually on duty. <b>FULL DAY</b> counts as 1 Present even if you enter it later. <b>HALF DAY</b> counts as 0.5 Present.</p>
-<div class="grid">
-<label class="small"><b>Employee</b><select id="manualEmp" style="width:100%;margin-top:5px"></select></label>
-<label class="small"><b>Date</b><input id="manualDate" type="date" style="width:100%;margin-top:5px"></label>
-<label class="small"><b>Attendance Type</b><select id="manualType" onchange="manualAttendanceTypeChanged()" style="width:100%;margin-top:5px"><option value="full">FULL DAY</option><option value="half">HALF DAY</option></select></label>
-<label class="small"><b>Time In</b><input id="manualIn" type="time" value="08:00" style="width:100%;margin-top:5px"></label>
-<label class="small"><b>Time Out</b><input id="manualOut" type="time" value="17:00" style="width:100%;margin-top:5px"></label>
-</div>
-<p class="small muted">Manual entries are saved for the selected date and will appear in Attendance Log and Monthly Summary.</p>
-<button onclick="saveManualAttendance()">💾 Save Manual Attendance</button>
-<span id="manualMsg" class="small" style="margin-left:10px"></span>
-</div>
-<p><button onclick="csv()">Export '+monthVal+(branchVal==='all'?'':' '+esc(branchName(branchVal)))+' CSV</button></p>'+
+  '<button onclick="csv()">Export '+monthVal+(branchVal==='all'?'':' '+esc(branchName(branchVal)))+' CSV</button>'+
   '<table><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th><th>ACTION</th></tr>'+
   filtered.map(x=>{const e=emp(x.employee_id);return '<tr><td>'+esc(x.attendance_date)+'</td><td>'+esc(e?.employee_code||'Unknown')+'</td><td>'+esc(e?.full_name||'Unknown')+'</td><td>'+esc(branchName(x.branch_id))+'</td><td>'+(x.time_in?new Date(x.time_in).toLocaleTimeString():'—')+'</td><td>'+(x.time_out?new Date(x.time_out).toLocaleTimeString():'—')+'</td><td><button onclick="deleteAttendance(\''+esc(x.id)+'\')" style="background:#fff;color:#b00020;border:1px solid #d66;padding:6px 10px">Delete</button></td></tr>'}).join('')+
   '</table><p class="muted small">Showing '+filtered.length+' attendance record(s). You can delete an incorrect attendance entry from here.</p></div>';
-  loadManualEmployees(); const md=document.getElementById('manualDate'); if(md)md.value=localDateString();
-}
-async function loadManualEmployees(){
-  const sel=document.getElementById('manualEmp');
-  if(!sel)return;
-  try{
-    const rows=await api('/employees?active=eq.true&select=id,employee_code,full_name,branch_id&order=full_name.asc');
-    sel.innerHTML=rows.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+' — '+esc(branchName(e.branch_id))+'</option>').join('');
-  }catch(e){sel.innerHTML='<option value="">Could not load employees</option>';}
-}
-function manualAttendanceTypeChanged(){
-  const type=document.getElementById('manualType')?.value;
-  const tin=document.getElementById('manualIn'), tout=document.getElementById('manualOut');
-  if(!tin||!tout)return;
-  if(type==='half'){tin.value='08:00';tout.value='13:00';}
-  else{tin.value='08:00';tout.value='17:00';}
-}
-function localDateTimeToISO(date,time){return new Date(date+'T'+time+':00').toISOString();}
-async function saveManualAttendance(){
-  const msg=document.getElementById('manualMsg');
-  const empId=document.getElementById('manualEmp')?.value;
-  const date=document.getElementById('manualDate')?.value;
-  const type=document.getElementById('manualType')?.value;
-  const tin=document.getElementById('manualIn')?.value;
-  const tout=document.getElementById('manualOut')?.value;
-  if(!empId||!date||!tin||!tout){msg.innerHTML='<span class="bad">Please complete all fields.</span>';return;}
-  if(tout<=tin){msg.innerHTML='<span class="bad">Time Out must be later than Time In.</span>';return;}
-  if(!confirm('Save '+(type==='half'?'HALF DAY':'FULL DAY')+' manual attendance for '+date+'?'))return;
-  msg.textContent='Saving…';
-  try{
-    const er=await api('/employees?id=eq.'+encodeURIComponent(empId)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
-    const e=er[0]; if(!e)throw new Error('Employee not found.');
-    const existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(empId)+'&attendance_date=eq.'+encodeURIComponent(date)+'&select=id');
-    const payload={employee_id:empId,branch_id:e.branch_id,attendance_date:date,time_in:localDateTimeToISO(date,tin),time_out:localDateTimeToISO(date,tout)};
-    if(existing[0]){
-      const rr=await api('/attendance?id=eq.'+encodeURIComponent(existing[0].id),{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({branch_id:e.branch_id,time_in:payload.time_in,time_out:payload.time_out})});
-      if(!rr.ok)throw new Error('Could not update existing attendance ('+rr.status+').');
-    }else{
-      const rr=await api('/attendance',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(payload)});
-      if(!rr.ok)throw new Error('Could not save manual attendance ('+rr.status+').');
-    }
-    msg.innerHTML='<span class="ok">✅ Manual attendance saved: '+esc(e.full_name)+' — '+(type==='half'?'HALF DAY':'FULL DAY')+'.</span>';
-    await attendance();
-  }catch(e){msg.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';}
 }
 async function deleteAttendance(id){
   if(!id)return;
@@ -1081,7 +1023,7 @@ async function csv(){
   const rows=[['DATE','EMP ID','NAME','BRANCH','TIME IN','TIME OUT'],...filtered.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||'Unknown',e?.full_name||'Unknown',branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():'',x.time_out?new Date(x.time_out).toLocaleString():'']})];
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\\n')],{type:'text/csv'}));a.download='attendance-'+month+(branch==='all'?'':'-'+String(branchName(branch)).replace(/[^a-z0-9]+/gi,'-'))+'.csv';a.click();
 }
-try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v=8',{updateViaCache:'none'}).then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); initAuth();
+try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); initAuth();
 </script>
 </body>
 </html>
