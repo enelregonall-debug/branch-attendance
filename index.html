@@ -775,6 +775,7 @@ async function employees(){
 }
 function token(){return crypto.randomUUID ? crypto.randomUUID().replaceAll("-","") : Math.random().toString(36).slice(2)+Date.now();}
 async function addEmployee(){
+  if(authRole==='boss') return alert('Owner account is view-only.');
   const name=ename.value.trim(); if(!name)return alert("Enter employee name");
   const existing=await api("/employees?select=id"); const code="EMP-"+String(existing.length+1).padStart(4,"0");
   try{
@@ -806,6 +807,7 @@ async function editEmployee(id){
   }catch(err){alert("Could not load employee: "+err.message);}
 }
 async function saveEmployee(id){
+  if(authRole==='boss') return alert('Owner account is view-only.');
   const name=document.getElementById("editName").value.trim();
   const pos=document.getElementById("editPos").value.trim();
   const branchValue=document.getElementById("editBranch").value; const branchId=branchValue===""?null:Number(branchValue);
@@ -829,10 +831,11 @@ async function saveEmployee(id){
 async function branchqrs(){
   await ensureQRCode();
   const rows=await api('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc');
-  app.innerHTML='<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">'+rows.map(b=>'<div class="card center"><h3>'+esc(b.name)+'</h3><div id="bqr'+b.id+'" style="display:flex;justify-content:center"></div><p class="small "'+(b.latitude!=null?'ok':'bad')+'>'+(b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set')+'</p><button onclick="printBranchQR('+b.id+')">Print QR</button> <button onclick="setBranchLocation('+b.id+')" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button></div>').join('')+'</div></div>';
+  app.innerHTML='<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">'+rows.map(b=>'<div class="card center"><h3>'+esc(b.name)+'</h3><div id="bqr'+b.id+'" style="display:flex;justify-content:center"></div><p class="small "'+(b.latitude!=null?'ok':'bad')+'>'+(b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set')+'</p><button onclick="printBranchQR('+b.id+')">Print QR</button>'+(authRole==='boss'?'':' <button onclick="setBranchLocation('+b.id+')" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button></div>').join('')+'</div></div>';
   rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname.replace(/[^/]*$/,'attendance.html')+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
 }
 async function setBranchLocation(id){
+  if(authRole==='boss') return alert('Owner account is view-only.');
   const b=branches.find(x=>Number(x.id)===Number(id));
   if(!b)return;
   if(!window.isSecureContext && location.hostname!=='localhost')return alert('Location/GPS needs HTTPS. Open the HTTPS system link, not a local HTML file.');
@@ -1032,6 +1035,7 @@ async function loadManualEmployees(){
 function manualTypeChanged(){const t=document.getElementById('manualType')?.value;if(t==='half'){manualIn.value='08:00';manualOut.value='13:00'}else{manualIn.value='08:00';manualOut.value='17:00'}}
 function manualDateTime(date,time){return new Date(date+'T'+time+':00').toISOString()}
 async function saveManualAttendance(){
+ if(authRole==='boss') return alert('Owner account is view-only.');
  const m=document.getElementById('manualMsg'),empId=document.getElementById('manualEmp')?.value,date=document.getElementById('manualDate')?.value,type=document.getElementById('manualType')?.value,tin=document.getElementById('manualIn')?.value,tout=document.getElementById('manualOut')?.value,selectedBranch=document.getElementById('manualBranch')?.value||'all';
  if(!empId||!date||!tin||!tout){m.innerHTML='<span class="bad">Complete all fields.</span>';return}
  if(tout<=tin){m.innerHTML='<span class="bad">TIME OUT must be later than TIME IN.</span>';return}
@@ -1057,6 +1061,7 @@ async function saveManualAttendance(){
  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
 }
 async function deleteAttendance(id){
+  if(authRole==='boss') return alert('Owner account is view-only.');
   if(!id)return;
   if(!confirm('Delete this attendance record? This cannot be undone.'))return;
   try{
