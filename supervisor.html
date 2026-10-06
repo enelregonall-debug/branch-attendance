@@ -37,6 +37,20 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.qr-card{text-align:center;background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px}.qr-box{min-height:190px;display:grid;place-items:center;margin:12px 0}.qr-card h3{margin:0 0 6px}.qr-card p{margin:0;color:var(--muted);font-size:13px}.qr-card button{margin-top:10px;background:var(--primary);color:#fff}.panel{margin-top:18px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px}
 .theme-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid var(--border)}
 .theme-row:last-child{border-bottom:0}
+.emp-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.emp-tools input,.emp-tools select{max-width:260px}
+.emp-table-wrap{overflow:auto;background:#fff;border:1px solid var(--border);border-radius:14px}
+.emp-table{width:100%;border-collapse:collapse;min-width:900px}
+.emp-table th,.emp-table td{padding:12px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.emp-table th{background:#f8fafc;font-size:13px;color:var(--muted)}
+.emp-table tr:last-child td{border-bottom:0}
+.edit-btn{background:#eaf2f8;color:var(--primary);border:1px solid #cbdde9;padding:8px 12px}
+.status-active{font-weight:700;color:#167a3d}.status-inactive{font-weight:700;color:#b42318}
+.modal-backdrop{position:fixed;inset:0;background:#0008;display:grid;place-items:center;padding:18px;z-index:1000}
+.modal{width:min(520px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:22px;box-shadow:0 20px 50px #0004}
+.modal h2{margin:0 0 5px}.modal .hint{color:var(--muted);font-size:13px;margin:0 0 12px}
+.modal-actions{display:flex;gap:10px;margin-top:18px}.modal-actions button{flex:1}
+.save-btn{background:var(--primary);color:#fff}.cancel-btn{background:#fff;border:1px solid var(--border)}
 @media(max-width:800px){
  .layout{display:block}.sidebar{width:100%;display:grid;grid-template-columns:repeat(2,1fr);gap:4px;border-right:0;border-bottom:1px solid var(--border)}
  .cards{grid-template-columns:repeat(2,minmax(130px,1fr))}
@@ -112,7 +126,20 @@ async function render(page){
       </div>`;
     await loadDashboard();
   }else if(page==="employees"){
-    content.innerHTML=`<h1 class="page-title">Employees</h1><p class="page-sub">Employee roster and management.</p><div class="panel">Employee module — next step.</div>`;
+    content.innerHTML=`
+      <h1 class="page-title">Employees</h1>
+      <p class="page-sub">Employee roster and management.</p>
+      <div class="panel">
+        <div class="emp-tools">
+          <input id="empSearch" placeholder="Search name or EMP ID">
+          <select id="empBranchFilter"><option value="">All Branches</option></select>
+          <button id="empRefresh" class="refresh">Refresh</button>
+        </div>
+        <div id="empStatus" style="color:var(--muted)">Loading employees…</div>
+      </div>
+      <div id="empTableWrap" class="emp-table-wrap"></div>
+      <div id="empModalHost"></div>`;
+    await loadEmployees();
   }else if(page==="branchqr"){
     content.innerHTML=`
       <h1 class="page-title">Branch QR Code</h1>
@@ -141,6 +168,125 @@ function phDate(){
   const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
   return y+"-"+m+"-"+day;
 }
+let employeeRows=[];
+let employeeBranches=[];
+
+async function loadEmployees(){
+  const status=document.getElementById("empStatus");
+  const wrap=document.getElementById("empTableWrap");
+  try{
+    const [{data:emps,error:ee},{data:branches,error:be}]=await Promise.all([
+      sb.from("employees").select("id,employee_code,full_name,position,branch_id,daily_rate,active").order("employee_code"),
+      sb.from("branches").select("id,name").order("name")
+    ]);
+    if(ee) throw ee;
+    if(be) throw be;
+    employeeRows=emps||[];
+    employeeBranches=branches||[];
+    const bf=document.getElementById("empBranchFilter");
+    bf.innerHTML='<option value="">All Branches</option>'+employeeBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
+    document.getElementById("empSearch").oninput=renderEmployeeTable;
+    bf.onchange=renderEmployeeTable;
+    document.getElementById("empRefresh").onclick=loadEmployees;
+    renderEmployeeTable();
+  }catch(e){
+    status.textContent="Could not load employees: "+(e?.message||e);
+    wrap.innerHTML="";
+  }
+}
+
+function renderEmployeeTable(){
+  const q=(document.getElementById("empSearch")?.value||"").trim().toLowerCase();
+  const branchFilter=document.getElementById("empBranchFilter")?.value||"";
+  const rows=employeeRows.filter(e=>{
+    const branchId=String(e.branch_id??"");
+    const text=[e.employee_code,e.full_name,e.position].join(" ").toLowerCase();
+    return (!q||text.includes(q))&&(!branchFilter||branchId===branchFilter);
+  });
+  const status=document.getElementById("empStatus");
+  const wrap=document.getElementById("empTableWrap");
+  status.textContent=rows.length+" employee(s) shown.";
+  wrap.innerHTML=`
+    <table class="emp-table">
+      <thead><tr><th>EMP ID</th><th>NAME</th><th>POSITION</th><th>BRANCH</th><th>DAILY RATE</th><th>STATUS</th><th>ACTION</th></tr></thead>
+      <tbody>${rows.map(e=>{
+        const b=employeeBranches.find(x=>String(x.id)===String(e.branch_id));
+        const rate=e.daily_rate==null?"—":"₱"+Number(e.daily_rate).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2});
+        return `<tr>
+          <td><b>${escText(e.employee_code)}</b></td>
+          <td>${escText(e.full_name)}</td>
+          <td>${escText(e.position||"—")}</td>
+          <td>${escText(b?.name||"Any Branch")}</td>
+          <td>${rate}</td>
+          <td class="${e.active?"status-active":"status-inactive"}">${e.active?"Active":"Inactive"}</td>
+          <td><button class="edit-btn" onclick="openEmployeeEdit('${String(e.id).replace(/'/g,"\\'")}')">✏️ Edit</button></td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>`;
+}
+
+function openEmployeeEdit(id){
+  const e=employeeRows.find(x=>String(x.id)===String(id)); if(!e)return;
+  const host=document.getElementById("empModalHost");
+  host.innerHTML=`
+    <div class="modal-backdrop" id="employeeModal">
+      <div class="modal">
+        <h2>Edit Employee</h2>
+        <p class="hint">EMP ID is locked so existing attendance records remain connected.</p>
+        <label>EMP ID</label><input value="${escText(e.employee_code)}" disabled>
+        <label>Name</label><input id="editName" value="${escText(e.full_name)}">
+        <label>Position</label><input id="editPosition" value="${escText(e.position||"")}">
+        <label>Branch</label>
+        <select id="editBranch">
+          <option value="">Any Branch</option>
+          ${employeeBranches.map(b=>`<option value="${escText(b.id)}" ${String(e.branch_id??"")===String(b.id)?"selected":""}>${escText(b.name)}</option>`).join("")}
+        </select>
+        <label>Daily Rate</label><input id="editRate" type="number" min="0" step="0.01" value="${e.daily_rate==null?"":e.daily_rate}">
+        <label>Status</label>
+        <select id="editActive">
+          <option value="true" ${e.active?"selected":""}>Active</option>
+          <option value="false" ${!e.active?"selected":""}>Inactive</option>
+        </select>
+        <div class="modal-actions">
+          <button class="cancel-btn" onclick="closeEmployeeEdit()">Cancel</button>
+          <button class="save-btn" onclick="saveEmployeeEdit('${String(e.id).replace(/'/g,"\\'")}')">Save Changes</button>
+        </div>
+        <div id="editMsg" style="margin-top:12px;min-height:20px"></div>
+      </div>
+    </div>`;
+}
+function closeEmployeeEdit(){const h=document.getElementById("empModalHost");if(h)h.innerHTML=""}
+async function saveEmployeeEdit(id){
+  const e=employeeRows.find(x=>String(x.id)===String(id)); if(!e)return;
+  const msg=document.getElementById("editMsg"), btn=document.querySelector("#employeeModal .save-btn");
+  const name=document.getElementById("editName").value.trim();
+  const position=document.getElementById("editPosition").value.trim();
+  const branchVal=document.getElementById("editBranch").value;
+  const rateVal=document.getElementById("editRate").value;
+  const active=document.getElementById("editActive").value==="true";
+  if(!name){msg.textContent="Name is required.";msg.style.color="#b42318";return}
+  if(rateVal!=="" && Number(rateVal)<0){msg.textContent="Daily rate cannot be negative.";msg.style.color="#b42318";return}
+  btn.disabled=true;btn.textContent="Saving…";msg.textContent="";
+  try{
+    const update={
+      full_name:name,
+      position:position||null,
+      branch_id:branchVal?Number(branchVal):null,
+      daily_rate:rateVal===""?null:Number(rateVal),
+      active
+    };
+    const {error}=await sb.from("employees").update(update).eq("id",e.id);
+    if(error)throw error;
+    Object.assign(e,update);
+    closeEmployeeEdit();
+    renderEmployeeTable();
+    const status=document.getElementById("empStatus"); if(status)status.textContent="Employee updated successfully.";
+  }catch(err){
+    msg.textContent="Save failed: "+(err?.message||err);msg.style.color="#b42318";
+    btn.disabled=false;btn.textContent="Save Changes";
+  }
+}
+
 async function loadBranchQR(){
   const status=document.getElementById("qrStatus"), grid=document.getElementById("qrGrid");
   try{
