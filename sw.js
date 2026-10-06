@@ -1,4 +1,4 @@
-const CACHE_NAME='katrinas-attendance-offline-final6';
+const CACHE_NAME='katrinas-attendance-offline-final7';
 const APP_SHELL=[
   './',
   './index.html',
@@ -33,6 +33,10 @@ self.addEventListener('fetch',event=>{
   const req=event.request;
   if(req.method!=='GET') return;
   const url=new URL(req.url);
+  if(url.origin===self.location.origin && url.pathname.endsWith('/login.html')){
+    event.respondWith(fetch(req,{cache:'no-store'}));
+    return;
+  }
   if(url.origin===self.location.origin && req.mode==='navigate'){
     event.respondWith((async()=>{
       const cache=await caches.open(CACHE_NAME);
