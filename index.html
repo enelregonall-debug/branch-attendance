@@ -135,16 +135,11 @@ body.compact-tables table td{font-size:.9rem}
     </div>
     <div class="login">
       <div style="font-size:34px">👑</div>
-      <h2>Owner / Employer Sign In</h2>
-      <p class="muted">Read-only access for the employer. Attendance, employees and monthly summary can be viewed, but not edited.</p>
-      <input id="ownerEmail" type="email" placeholder="Owner / Employer email" autocomplete="username">
-      <input id="ownerPassword" type="password" placeholder="Owner / Employer password" autocomplete="current-password">
-      <button onclick="loginAs('boss')">👑 Sign In as Owner</button>
-      <div id="ownerMsg" class="authmsg small"></div>
-      <p class="muted small">Owner account is separate from the Supervisor account.</p>
-    </div>
-  </div>
-</div>
+      <h2>Employer / Owner</h2>
+      <p class="muted">Read-only employer access. This opens a separate employer page.</p>
+      <button onclick="location.href='owner.html'">👑 Open Employer Login</button>
+      <p class="muted small">Employer cannot edit, delete, or add attendance records.</p>
+    </div></div>
 <header>
 <button class="logout" onclick="logout()">Log Out</button><span style="vertical-align:middle"><h2 style="display:inline">Katrinas Digital Attendance</h2><div>Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div></span>
 </header>
