@@ -170,7 +170,7 @@ body.compact-tables table td{font-size:.9rem}
 (function(){
   try{
     const q=new URLSearchParams(location.search);
-    if(q.has('branchId') || q.has('branch')){
+    if(q.has('branchId') || q.has('branch') || q.has('branchName')){
       const qs=location.search;
       const target=new URL('./employee.html',location.href);
       target.search=qs;
@@ -682,6 +682,7 @@ async function loginAs(requestedRole){
   if(!email||!password){m.innerHTML='<span class="bad">Enter email and password.</span>';return;}
   m.textContent='Signing in…';
   try{
+    await ensureSupabase();
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error){
       const msg=String(error.message||'');
