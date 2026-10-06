@@ -204,6 +204,8 @@ async function syncImportedDailyRates(){
 }
 
 const API = SUPABASE_URL + "/rest/v1";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
 let sb = null;
 function loadScriptOnce(src){return new Promise((resolve,reject)=>{const existing=[...document.scripts].find(s=>s.src===src);if(existing){if(window.supabase&&src.includes("supabase"))return resolve();return existing.addEventListener("load",resolve,{once:true}),existing.addEventListener("error",reject,{once:true});}const s=document.createElement("script");s.src=src;s.async=true;s.onload=()=>resolve();s.onerror=()=>reject(new Error("Could not load required script."));document.head.appendChild(s);});}
 async function ensureSupabase(){if(!window.supabase) await loadScriptOnce("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"); if(!sb) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); return sb;}
