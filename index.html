@@ -226,6 +226,8 @@ const EMP_CACHE='bratt_employee_cache_v2', QUEUE_KEY='bratt_offline_queue_v1', L
 const BRANCH_CACHE='bratt_branch_cache_v2';
 const DEVICE_BIND='bratt_registered_phone_v1';
 let employeeSession=null, employeeBranch=null;
+// Back Office no longer uses a camera on this page. Keep navigation/login safe.
+function stop(){}
 
 function isEmployeeMode(){ return false; }
 function getBranchToken(){ return new URLSearchParams(location.search).get('branch'); }
