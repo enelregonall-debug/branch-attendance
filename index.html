@@ -9,6 +9,43 @@
 <title>Katrinas Digital Attendance</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* Independent login bridge: does not depend on the large Back Office script finishing first. */
+window.quickLogin=async function(role){
+  const email=document.getElementById('loginEmail')?.value.trim();
+  const password=document.getElementById('loginPassword')?.value||'';
+  const m=document.getElementById('loginMsg');
+  if(!email||!password){if(m)m.innerHTML='<span class="bad">Enter email and password.</span>';return;}
+  const button=[...document.querySelectorAll('#authGate button')].find(b=>b.textContent.toLowerCase().includes(role==='boss'?'employer':'supervisor'));
+  if(button){button.disabled=true;button.dataset.oldText=button.textContent;button.textContent='Signing in…';}
+  if(m)m.innerHTML='<span class="muted">Connecting securely…</span>';
+  try{
+    const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok){
+      const msg=data.error_description||data.msg||data.message||'Login failed.';
+      throw new Error(msg);
+    }
+    const actual=data.user?.user_metadata?.role||'supervisor';
+    if((role==='boss'&&actual!=='boss')||(role==='supervisor'&&actual==='boss')){
+      throw new Error(role==='boss'?'This is not the Employer account.':'This is not the Supervisor account.');
+    }
+    if(!window.supabase) throw new Error('Secure login service is unavailable. Please refresh once.');
+    const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    const {error}=await client.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
+    if(error) throw error;
+    if(m)m.innerHTML='<span class="ok">✅ Login successful. Opening Back Office…</span>';
+    location.reload();
+  }catch(e){
+    if(m)m.innerHTML='<span class="bad">❌ '+String(e.message||e).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]))+'</span>';
+    if(button){button.disabled=false;button.textContent=button.dataset.oldText||'Sign in';}
+  }
+};
+</script>
 
 
 
@@ -128,8 +165,8 @@ body.compact-tables table td{font-size:.9rem}
     <p class="muted">Sign in to the Back Office using the account type that matches your role.</p>
     <input id="loginEmail" type="email" placeholder="Email" autocomplete="username" style="width:100%;margin-bottom:9px">
     <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:9px">
-    <button onclick="loginAs('supervisor')" style="width:100%;margin-bottom:8px">🔐 Sign in as Supervisor</button>
-    <button onclick="loginAs('boss')" style="width:100%;background:#fff;color:#172033;border:1px solid #ccd3df">👑 Sign in as Employer</button>
+    <button onclick="quickLogin('supervisor')" style="width:100%;margin-bottom:8px">🔐 Sign in as Supervisor</button>
+    <button onclick="quickLogin('boss')" style="width:100%;background:#fff;color:#172033;border:1px solid #ccd3df">👑 Sign in as Employer</button>
     <button onclick="signupAsSupervisor()" style="width:100%;margin-top:10px;background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button>
     <button onclick="resendSupervisorConfirmation()" style="width:100%;margin-top:8px;background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
     <div id="loginMsg" class="authmsg small"></div>
