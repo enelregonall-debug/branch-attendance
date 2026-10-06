@@ -48,6 +48,10 @@ window.quickLogin=async function(role){
     document.querySelectorAll('nav button').forEach(b=>{b.style.pointerEvents='auto';b.disabled=false;});
     try{ await cacheBranchList(); }catch(_){}
     try{ if(authRole!=='boss') syncImportedDailyRates(); }catch(_){}
+    try{ await page('dashboard'); }catch(e){
+      const app=document.getElementById('app');
+      if(app) app.innerHTML='<div class="card"><span class="bad">❌ '+String(e.message||e)+'</span></div>';
+    }
   }catch(e){
     if(m)m.innerHTML='<span class="bad">❌ '+String(e.message||e).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]))+'</span>';
     if(button){button.disabled=false;button.textContent=button.dataset.oldText||'Sign in';}
