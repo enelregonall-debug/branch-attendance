@@ -193,11 +193,11 @@ body{min-height:100vh}
 <button class="logout" onclick="logout()">Log Out</button><span style="vertical-align:middle"><h2 style="display:inline">Katrinas Digital Attendance</h2><div>Branch QR • Registered phone • GPS verification • 1 IN + 1 OUT per employee/day • Monthly attendance summary</div></span>
 </header>
 <nav>
-<button type="button" id="navDashboard">Dashboard</button>
-<button type="button" id="navEmployees">Employees</button>
-<button type="button" id="navBranchQR">🏪 Branch QR</button>
-<button type="button" id="navAttendance">Attendance</button>
-<button type="button" id="navSummary">📊 Monthly Summary</button>
+<button onclick="page('dashboard')">Dashboard</button>
+<button onclick="page('employees')">Employees</button>
+<button onclick="page('branchqrs')">🏪 Branch QR</button>
+<button onclick="page('attendance')">Attendance</button>
+<button onclick="page('summary')">📊 Monthly Summary</button>
 <button onclick="toggleCustomize()" id="customizeBtn">⚙️ Customize</button>
 <div id="customizePanel" style="display:none;position:absolute;right:16px;top:58px;z-index:1000;background:var(--card);color:var(--ink);padding:14px;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);min-width:230px">
   <div style="font-weight:700;margin-bottom:10px">Appearance</div>
@@ -206,7 +206,7 @@ body{min-height:100vh}
   <label style="display:block;margin-bottom:9px"><span class="small">🔤 Font</span><select id="fontSelect" onchange="setFont(this.value)" style="width:100%;padding:8px 10px"><option value="antiqua">Book Antiqua</option><option value="poppins">Poppins</option><option value="georgia">Georgia</option><option value="garamond">Garamond</option><option value="trebuchet">Trebuchet MS</option><option value="verdana">Verdana</option></select></label>
   <label style="display:block"><span class="small">📏 Rows</span><select id="densitySelect" onchange="setTableDensity(this.value)" style="width:100%;padding:8px 10px"><option value="compact">Compact</option><option value="comfortable">Comfortable</option></select></label>
 </div>
-</nav>
+</nav></nav>
 <main id="app"><div class="card">Loading…</div></main>
 
 
@@ -712,7 +712,6 @@ async function syncQueue(){
 }
 
 window.addEventListener('online',async()=>{await cacheBranchList();await syncQueue();if(employeeSession)renderEmployeeApp()});
-bindOfficeNavigation();
 async function initAuth(){
   if(isEmployeeMode()){await initEmployeeMode();return;}
   try{
@@ -849,24 +848,6 @@ async function loadBranches(){
 }
 function branchName(id){if(id===null||id===undefined||id==="")return "ANY BRANCH";return branches.find(b=>String(b.id)===String(id))?.name||"Unknown";}
 
-function bindOfficeNavigation(){
-  const routes={
-    navDashboard:'dashboard',
-    navEmployees:'employees',
-    navBranchQR:'branchqrs',
-    navAttendance:'attendance',
-    navSummary:'summary'
-  };
-  Object.entries(routes).forEach(([id,route])=>{
-    const b=document.getElementById(id);
-    if(b){
-      b.onclick=()=>page(route);
-      b.onpointerup=()=>page(route);
-      b.style.pointerEvents='auto';
-      b.disabled=false;
-    }
-  });
-}
 async function page(x){
   if(!session){renderAuth();return;}
   stop();
