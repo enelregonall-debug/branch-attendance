@@ -27,6 +27,7 @@ table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:9px;bord
     <input id="email" type="email" placeholder="Employer email" autocomplete="username">
     <input id="password" type="password" placeholder="Employer password" autocomplete="current-password">
     <button onclick="signIn()">👑 Sign In</button>
+    <button onclick="resetPassword()" style="margin-top:8px;background:#fff;color:#172033;border:1px solid #ccd3df">🔑 Forgot Password / Reset Password</button>
     <div id="msg" style="margin-top:12px;min-height:22px"></div>
     <p class="muted" style="font-size:13px">This account can view records only. No add, edit, manual attendance, or delete controls.</p>
   </div>
@@ -50,6 +51,16 @@ const today=()=>{const d=new Date();return d.toISOString().slice(0,10)};
 async function rest(path){
  const r=await fetch(URL+'/rest/v1/'+path,{headers:{apikey:KEY,Authorization:'Bearer '+token,Accept:'application/json'}});
  const t=await r.text(); if(!r.ok) throw new Error(t||('HTTP '+r.status)); return t?JSON.parse(t):[];
+}
+async function resetPassword(){
+ const msg=document.getElementById('msg'),email=document.getElementById('email').value.trim();
+ if(!email){msg.innerHTML='<span class="bad">Enter your Employer email first.</span>';return}
+ msg.textContent='Sending password reset email…';
+ try{
+  const r=await fetch(URL+'/auth/v1/recover',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email,redirect_to:location.href})});
+  if(!r.ok){let d={};try{d=await r.json()}catch{};throw new Error(d.msg||d.error_description||'Could not send reset email.');}
+  msg.innerHTML='<span class="ok">✅ Password reset email sent. Check your Inbox and Spam/Junk.</span>';
+ }catch(e){msg.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
 }
 async function signIn(){
  const msg=document.getElementById('msg'),email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;
