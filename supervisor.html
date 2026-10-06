@@ -33,7 +33,7 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:
 .cards{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:14px}
 .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px}
 .card h3{margin:0 0 8px;font-size:14px;color:var(--muted)}
-.card .num{font-size:28px;font-weight:800}
+.card .num{font-size:28px;font-weight:800}.refresh{background:#fff;color:var(--primary);border:1px solid var(--border);padding:8px 12px}
 .panel{margin-top:18px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px}
 .theme-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid var(--border)}
 .theme-row:last-child{border-bottom:0}
@@ -91,19 +91,25 @@ function showMessage(text,ok=false){
   msg.textContent=text;
   msg.style.color=ok?"#167a3d":"#b42318";
 }
-function render(page){
+async function render(page){
   document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
   if(page==="dashboard"){
     content.innerHTML=`
       <h1 class="page-title">Dashboard</h1>
       <p class="page-sub">Supervisor overview</p>
       <div class="cards">
-        <div class="card"><h3>Employees</h3><div class="num">—</div></div>
-        <div class="card"><h3>Branches</h3><div class="num">10</div></div>
-        <div class="card"><h3>Present Today</h3><div class="num">—</div></div>
-        <div class="card"><h3>Absent Today</h3><div class="num">—</div></div>
+        <div class="card"><h3>Active Employees</h3><div id="dashEmployees" class="num">…</div></div>
+        <div class="card"><h3>Branches</h3><div id="dashBranches" class="num">…</div></div>
+        <div class="card"><h3>Present Today</h3><div id="dashPresent" class="num">…</div></div>
+        <div class="card"><h3>Absent Today</h3><div id="dashAbsent" class="num">…</div></div>
       </div>
-      <div class="panel"><strong>Supervisor Browser is ready.</strong><p style="color:var(--muted)">Next we will connect the real Employees, Attendance and Monthly Summary data without changing the employee attendance page.</p></div>`;
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <strong>Today’s Overview</strong><button id="refreshDashboard" class="refresh">Refresh</button>
+        </div>
+        <p id="dashStatus" style="color:var(--muted)">Loading live data…</p>
+      </div>`;
+    await loadDashboard();
   }else if(page==="employees"){
     content.innerHTML=`<h1 class="page-title">Employees</h1><p class="page-sub">Employee roster and management.</p><div class="panel">Employee module — next step.</div>`;
   }else if(page==="attendance"){
@@ -122,11 +128,36 @@ function render(page){
   }
 }
 
+function phDate(){
+  const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+day;
+}
+async function loadDashboard(){
+  const status=document.getElementById("dashStatus");
+  try{
+    const [{data:employees,error:ee},{data:branches,error:be},{data:attendance,error:ae}]=await Promise.all([
+      sb.from("employees").select("id").eq("active",true),
+      sb.from("branches").select("id"),
+      sb.from("attendance").select("employee_id,time_in").eq("attendance_date",phDate())
+    ]);
+    if(ee) throw ee; if(be) throw be; if(ae) throw ae;
+    const presentIds=new Set((attendance||[]).filter(x=>x.time_in).map(x=>x.employee_id));
+    document.getElementById("dashEmployees").textContent=(employees||[]).length;
+    document.getElementById("dashBranches").textContent=(branches||[]).length;
+    document.getElementById("dashPresent").textContent=presentIds.size;
+    document.getElementById("dashAbsent").textContent=Math.max(0,(employees||[]).length-presentIds.size);
+    status.textContent="Live data loaded for "+phDate()+".";
+    document.getElementById("refreshDashboard").onclick=loadDashboard;
+  }catch(e){
+    status.textContent="Could not load live data: "+(e?.message||e);
+    ["dashEmployees","dashBranches","dashPresent","dashAbsent"].forEach(id=>document.getElementById(id).textContent="—");
+  }
+}
 async function openApp(session){
   loginView.classList.add("hidden");
   appView.classList.remove("hidden");
   signedUser.textContent=session.user.email||"Supervisor";
-  render("dashboard");
+  await render("dashboard");
 }
 async function checkSession(){
   const {data,error}=await sb.auth.getSession();
@@ -157,7 +188,7 @@ document.getElementById("logoutBtn").onclick=async()=>{
   document.getElementById("password").value="";
   showMessage("");
 };
-document.querySelectorAll(".navbtn").forEach(b=>b.onclick=()=>render(b.dataset.page));
+document.querySelectorAll(".navbtn").forEach(b=>b.onclick=async()=>await render(b.dataset.page));
 checkSession();
 </script>
 </body>
