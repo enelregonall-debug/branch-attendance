@@ -50,7 +50,7 @@ body{font-family:Arial,sans-serif;background:#f3f6fb;margin:0;color:#172033}.wra
 const API='https://ktrrjldiniwqryuojjnq.supabase.co/rest/v1';
 const KEY='sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK'; 
 const qs=new URLSearchParams(location.search);
-const branchId=qs.get('branchId'), token=qs.get('branch');
+const branchId=qs.get('branchId'), token=qs.get('branch'), branchNameParam=qs.get('branchName');
 let branch=null, employees=[], busy=false;
 const BKEY='kda_clean_branch_v1', EKEY='kda_clean_employees_v1', PKEY='kda_clean_phone_v1', QKEY='kda_clean_queue_v1';
 function msg(s,good=false){const m=document.getElementById('msg');m.className='msg '+(good?'ok':'bad');m.textContent=s}
@@ -75,7 +75,7 @@ async function loadData(){
  try{
   if(!branchId&&!token)throw Error('Invalid Branch QR. No branch information found.');
   let r,arr=[];
-  if(branchId){r=await api('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
+  if(branchId){r=await api('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}\n  if(!arr.length&&branchNameParam){r=await api('/branches?name=eq.'+encodeURIComponent(branchNameParam)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
   if(!arr.length&&token){r=await api('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
   if(!arr.length)throw Error('Branch QR could not be verified.');
   branch=arr[0];localStorage.setItem(BKEY,JSON.stringify(branch));
