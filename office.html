@@ -181,8 +181,8 @@ body{min-height:100vh}
     <p class="muted">Sign in to the Back Office using the account type that matches your role.</p>
     <input id="loginEmail" type="email" placeholder="Email" autocomplete="username" style="width:100%;margin-bottom:9px">
     <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:9px">
-    <button onclick="quickLogin('supervisor')" style="width:100%;margin-bottom:8px">🔐 Sign in as Supervisor</button>
-    <button onclick="quickLogin('boss')" style="width:100%;background:#fff;color:#172033;border:1px solid #ccd3df">👑 Sign in as Employer</button>
+    <button onclick="loginAs('supervisor')" style="width:100%;margin-bottom:8px">🔐 Sign in as Supervisor</button>
+    <button onclick="loginAs('boss')" style="width:100%;background:#fff;color:#172033;border:1px solid #ccd3df">👑 Sign in as Employer</button>
     <button onclick="signupAsSupervisor()" style="width:100%;margin-top:10px;background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button>
     <button onclick="resendSupervisorConfirmation()" style="width:100%;margin-top:8px;background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
     <div id="loginMsg" class="authmsg small"></div>
