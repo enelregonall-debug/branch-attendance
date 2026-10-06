@@ -41,7 +41,7 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:
 .att-table-wrap{overflow:auto;background:#fff;border:1px solid var(--border);border-radius:14px}
 .att-table{width:100%;border-collapse:collapse;min-width:900px}.att-table th,.att-table td{padding:12px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}.att-table th{background:#f8fafc;font-size:13px;color:var(--muted)}.att-table tr:last-child td{border-bottom:0}
 .delete-btn{background:#fff1f0;color:#b42318;border:1px solid #f3c7c3;padding:8px 12px}
-.monthly-sheet th,.monthly-sheet td{position:sticky}.monthly-sheet thead th{position:sticky;top:0;z-index:6;background:#f8fafc}.monthly-sheet .freeze-left{position:sticky;left:0;z-index:5;background:#fff}.monthly-sheet .freeze-left-2{position:sticky;left:90px;z-index:5;background:#fff}.monthly-sheet thead .freeze-left,.monthly-sheet thead .freeze-left-2{z-index:7;background:#f8fafc}
+.monthly-sheet-wrap{max-height:65vh;overflow:auto;position:relative}.monthly-sheet{border-collapse:separate!important;border-spacing:0}.monthly-sheet thead th{position:sticky;top:0;z-index:10;background:#f8fafc}.monthly-sheet .freeze-left{position:sticky;left:0;z-index:8;background:#fff;min-width:90px}.monthly-sheet .freeze-left-2{position:sticky;left:90px;z-index:8;background:#fff;min-width:180px}.monthly-sheet thead .freeze-left,.monthly-sheet thead .freeze-left-2{z-index:12;background:#f8fafc}
 
 .emp-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .emp-tools input,.emp-tools select{max-width:260px}
@@ -213,7 +213,7 @@ async function render(page){
         </div>
         <div id="msStatus" style="color:var(--muted)">Loading monthly summary…</div>
       </div>
-      <div id="msTableWrap" class="att-table-wrap"></div>`;
+      <div id="msTableWrap" class="att-table-wrap monthly-sheet-wrap"></div>`;
     await loadMonthlySummary();
   }else{
     content.innerHTML=`
@@ -638,7 +638,7 @@ async function loadMonthlySummary(){
       const dayHeads=Array.from({length:31},(_,i)=>'<th style="text-align:center;min-width:42px">'+(i+1)+'</th>').join("");
       wrap.innerHTML=
         '<table class="att-table monthly-sheet" style="min-width:1900px">'+
-        '<thead><tr><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>SCHEDULED</th>'+
+        '<thead><tr><th class="freeze-left">EMP ID</th><th class="freeze-left-2">NAME</th><th>BRANCH</th><th>SCHEDULED</th>'+
         dayHeads+
         '<th>TOTAL PRESENT</th><th>TOTAL ABSENT</th><th>ESTIMATED PAY</th></tr></thead>'+
         '<tbody>'+rows.map(r=>{
