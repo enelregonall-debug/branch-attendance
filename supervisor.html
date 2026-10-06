@@ -88,6 +88,7 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:
       <button class="navbtn" data-page="employees">Employees</button>
       <button class="navbtn" data-page="branchqr">Branch QR Code</button>
       <button class="navbtn" data-page="attendance">Attendance</button>
+      <button class="navbtn" data-page="manual">Manual Attendance</button>
       <button class="navbtn" data-page="monthly">Monthly Summary</button>
       <button class="navbtn" data-page="custom">Custom</button>
     </aside>
@@ -166,27 +167,33 @@ async function render(page){
         <div id="attStatus" style="color:var(--muted)">Loading attendance…</div>
       </div>
       <div id="attTableWrap" class="att-table-wrap"></div>
-      <div class="panel" style="margin-top:18px">
-        <h2 style="margin:0 0 6px">✍️ Manual Attendance</h2>
-        <p class="page-sub" style="margin-bottom:14px">Add or correct attendance manually.</p>
+`;
+    await loadAttendance();
+  }else if(page==="manual"){
+    content.innerHTML=`
+      <h1 class="page-title">Manual Attendance</h1>
+      <p class="page-sub">Supervisor-only entry for employees who missed their regular attendance.</p>
+      <div class="panel">
         <div class="att-tools">
           <select id="manualBranch"><option value="">Select Branch</option></select>
-          <select id="manualMonth"><option value="">Select Month</option></select>
-          <input id="manualDate" type="date">
-        </div>
-        <div class="att-tools">
           <select id="manualEmployee"><option value="">Select Employee</option></select>
-          <select id="manualStatus">
-            <option value="present">Present</option>
-            <option value="absent">Absent</option>
+          <input id="manualDate" type="date">
+          <select id="manualType">
+            <option value="full">WHOLE DAY</option>
+            <option value="half">HALF DAY</option>
           </select>
-          <input id="manualTimeIn" type="time" placeholder="Time In">
-          <input id="manualTimeOut" type="time" placeholder="Time Out">
-          <button id="manualSave" class="refresh">💾 Save Manual Attendance</button>
+          <button id="manualSave" class="save-btn">💾 Save Manual Attendance</button>
         </div>
-        <div id="manualMsg" style="margin-top:10px;min-height:20px"></div>
-      </div>`;
-    await loadAttendance();
+        <div class="panel" style="margin-top:12px;background:#f8fafc">
+          <strong>How it works</strong>
+          <p style="margin:7px 0 0;color:var(--muted);font-size:13px">
+            WHOLE DAY = 08:00–17:00. HALF DAY = 08:00–13:00. The saved record goes into the same attendance database so it can be counted in the Monthly Summary.
+          </p>
+        </div>
+        <div id="manualMsg" style="margin-top:12px;min-height:20px"></div>
+      </div>
+      <div id="manualExisting" class="panel"></div>`;
+    await loadManualAttendancePage();
   }else if(page==="monthly"){
     content.innerHTML=`<h1 class="page-title">Monthly Summary</h1><p class="page-sub">Present, absent and estimated pay.</p><div class="panel">Monthly Summary module — next step.</div>`;
   }else{
@@ -207,25 +214,6 @@ function phDate(){
 }
 let attendanceRows=[];
 let attendanceBranches=[];
-async function loadManualAttendance(){
-  const branch=document.getElementById("manualBranch"), month=document.getElementById("manualMonth"), date=document.getElementById("manualDate"), emp=document.getElementById("manualEmployee");
-  branch.innerHTML='<option value="">Select Branch</option>'+attendanceBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
-  const now=new Date(); let months='';
-  for(let i=-12;i<=3;i++){
-    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
-    const val=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-    months+='<option value="'+val+'" '+(i===0?"selected":"")+'>'+d.toLocaleDateString("en-PH",{month:"long",year:"numeric"})+'</option>';
-  }
-  month.innerHTML='<option value="">Select Month</option>'+months;
-  month.value=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
-  date.value=phDate();
-  setManualDateLimits();
-  branch.onchange=loadManualEmployees;
-  month.onchange=()=>{setManualDateLimits();loadManualEmployees()};
-  date.onchange=loadManualEmployees;
-  document.getElementById("manualSave").onclick=saveManualAttendance;
-  await loadManualEmployees();
-}
 function setManualDateLimits(){
   const month=document.getElementById("manualMonth").value,date=document.getElementById("manualDate");
   if(!month)return;
@@ -247,6 +235,85 @@ async function loadManualEmployees(){
   }catch(e){emp.innerHTML='<option value="">Could not load employees</option>';setManualMsg(e?.message||e,false)}
 }
 function setManualMsg(s,ok){const m=document.getElementById("manualMsg");if(m){m.textContent=s;m.style.color=ok?"#167a3d":"#b42318"}}
+async function loadManualAttendancePage(){
+  const branch=document.getElementById("manualBranch");
+  const emp=document.getElementById("manualEmployee");
+  const date=document.getElementById("manualDate");
+  const type=document.getElementById("manualType");
+  const save=document.getElementById("manualSave");
+  branch.innerHTML='<option value="">Select Branch</option>'+attendanceBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
+  date.value=phDate();
+  branch.onchange=loadManualEmployeesPage;
+  date.onchange=loadManualExisting;
+  type.onchange=loadManualExisting;
+  save.onclick=saveManualAttendance;
+  await loadManualEmployeesPage();
+  await loadManualExisting();
+}
+async function loadManualEmployeesPage(){
+  const branch=document.getElementById("manualBranch")?.value;
+  const emp=document.getElementById("manualEmployee");
+  if(!emp)return;
+  if(!branch){emp.innerHTML='<option value="">Select Branch first</option>';return}
+  emp.innerHTML='<option value="">Loading employees…</option>';
+  try{
+    const {data,error}=await sb.from("employees").select("id,employee_code,full_name,branch_id").eq("active",true).eq("branch_id",Number(branch)).order("full_name");
+    if(error)throw error;
+    emp.innerHTML='<option value="">Select Employee</option>'+(data||[]).map(e=>'<option value="'+escText(e.id)+'">'+escText(e.full_name)+' — '+escText(e.employee_code)+'</option>').join('');
+    if(!data?.length)emp.innerHTML='<option value="">No active employees in this branch</option>';
+    emp.onchange=loadManualExisting;
+  }catch(e){emp.innerHTML='<option value="">Could not load employees</option>';setManualMsg(e?.message||e,false)}
+}
+async function loadManualExisting(){
+  const emp=document.getElementById("manualEmployee")?.value;
+  const date=document.getElementById("manualDate")?.value;
+  const box=document.getElementById("manualExisting");
+  if(!box)return;
+  if(!emp||!date){box.innerHTML='<span style="color:var(--muted)">Select branch, employee and date.</span>';return}
+  try{
+    const {data,error}=await sb.from("attendance").select("id,time_in,time_out,attendance_date").eq("employee_id",emp).eq("attendance_date",date).limit(1);
+    if(error)throw error;
+    const r=data?.[0];
+    box.innerHTML=r
+      ? '<strong>Existing attendance:</strong> '+escText(fmtTime(r.time_in))+' – '+escText(fmtTime(r.time_out))+'<br><span style="color:var(--muted);font-size:13px">Saving manual attendance will update this record.</span>'
+      : '<span style="color:var(--muted)">No attendance record yet for this employee/date.</span>';
+  }catch(e){box.textContent='Could not check existing attendance: '+(e?.message||e)}
+}
+function manualDateTimeLocal(date,time){return new Date(date+'T'+time+':00').toISOString()}
+async function saveManualAttendance(){
+  const branch=document.getElementById("manualBranch")?.value;
+  const emp=document.getElementById("manualEmployee")?.value;
+  const date=document.getElementById("manualDate")?.value;
+  const type=document.getElementById("manualType")?.value||"full";
+  if(!branch||!emp||!date){setManualMsg("Please select Branch, Employee and Date.",false);return}
+  const save=document.getElementById("manualSave");
+  save.disabled=true;save.textContent="Saving…";setManualMsg("",true);
+  try{
+    const {data:employees,error:ee}=await sb.from("employees").select("id,employee_code,full_name,branch_id").eq("id",emp).eq("active",true).limit(1);
+    if(ee)throw ee;
+    const e=employees?.[0];if(!e)throw new Error("Employee not found.");
+    const timeIn=type==="half"?"08:00":"08:00";
+    const timeOut=type==="half"?"13:00":"17:00";
+    const {data:existing,error:xe}=await sb.from("attendance").select("id").eq("employee_id",emp).eq("attendance_date",date).limit(1);
+    if(xe)throw xe;
+    const payload={employee_id:Number(e.id),branch_id:Number(branch),attendance_date:date,time_in:manualDateTimeLocal(date,timeIn),time_out:manualDateTimeLocal(date,timeOut)};
+    if(existing?.[0]){
+      const {error}=await sb.from("attendance").update({branch_id:payload.branch_id,time_in:payload.time_in,time_out:payload.time_out}).eq("id",existing[0].id);
+      if(error)throw error;
+    }else{
+      const {error}=await sb.from("attendance").insert(payload);
+      if(error)throw error;
+    }
+    setManualMsg("✅ Manual attendance saved for "+e.full_name+" — "+(type==="half"?"HALF DAY":"WHOLE DAY")+".",true);
+    await loadManualExisting();
+  }catch(e){setManualMsg("❌ Save failed: "+(e?.message||e),false)}
+  finally{save.disabled=false;save.textContent="💾 Save Manual Attendance"}
+}
+function setManualMsg(s,ok){
+  const m=document.getElementById("manualMsg");if(!m)return;
+  m.textContent=s;m.style.color=ok?"#167a3d":"#b42318";
+}
+
 async function loadAttendance(){
   const status=document.getElementById("attStatus"), wrap=document.getElementById("attTableWrap"), date=document.getElementById("attDate");
   try{
