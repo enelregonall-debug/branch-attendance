@@ -1,17 +1,10 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<title>Katrinas Digital Attendance — Supervisor</title>
-</head>
-<body>
-<p style="font-family:Arial,sans-serif;text-align:center;padding:40px">Opening Supervisor Browser…</p>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Katrinas Digital Attendance - Supervisor</title>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f6f1ee;font-family:"Book Antiqua",Georgia,serif;display:flex;align-items:center;justify-content:center;color:#2b1717}.card{width:min(430px,92vw);background:#fff;border-radius:18px;padding:32px;box-shadow:0 10px 35px rgba(0,0,0,.12)}h1{margin:0 0 8px;text-align:center;font-size:25px}.sub{text-align:center;color:#777;margin:0 0 24px}label{display:block;font-weight:700;margin:14px 0 6px}input{width:100%;padding:13px 14px;border:1px solid #d7cccc;border-radius:10px;font:inherit}button{width:100%;margin-top:20px;padding:13px;border:0;border-radius:10px;background:#7d1f2a;color:#fff;font:700 16px inherit;cursor:pointer}button:disabled{opacity:.6;cursor:wait}#msg{min-height:22px;margin-top:15px;text-align:center;font-size:14px}.bad{color:#b42318}.ok{color:#16703a}</style></head>
+<body><div class="card"><h1>Katrinas Digital Attendance</h1><p class="sub">Supervisor Login</p><label>Email</label><input id="email" type="email" autocomplete="username" placeholder="Supervisor email"><label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Password"><button id="loginBtn">🔐 Sign In as Supervisor</button><div id="msg"></div></div>
 <script>
-location.replace('./supervisor-login.html');
-</script>
-</body>
-</html>
+const URL="https://ktrrjldiniwqryuojjnq.supabase.co",KEY="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
+const email=document.getElementById("email"),password=document.getElementById("password"),btn=document.getElementById("loginBtn"),msg=document.getElementById("msg");
+async function signIn(){if(!email.value.trim()||!password.value){msg.className="bad";msg.textContent="Please enter your email and password.";return}btn.disabled=true;msg.className="";msg.textContent="Signing in…";try{const r=await fetch(URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":KEY},body:JSON.stringify({email:email.value.trim(),password:password.value})});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error_description||d.msg||d.message||"Invalid login credentials.");if(!d.access_token)throw new Error("No access token returned.");if(d.user?.user_metadata?.role==="boss")throw new Error("Employer account detected. Use Employer Browser.");msg.className="ok";msg.textContent="LOGIN SUCCESSFUL ✓";sessionStorage.setItem("kda_supervisor_access_token",d.access_token);sessionStorage.setItem("kda_supervisor_user",JSON.stringify(d.user||{}));}catch(e){msg.className="bad";msg.textContent=e.message||"Login failed.";btn.disabled=false}}
+btn.addEventListener("click",signIn);password.addEventListener("keydown",e=>{if(e.key==="Enter")signIn()});email.addEventListener("keydown",e=>{if(e.key==="Enter")signIn());});
+</script></body></html>
