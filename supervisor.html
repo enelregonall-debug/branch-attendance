@@ -128,7 +128,7 @@ body.compact-tables table td{font-size:.9rem}
       <p class="muted">Full back-office access: employees, branches, QR, attendance, manual attendance and monthly summary.</p>
       <input id="supervisorEmail" type="email" placeholder="Supervisor email" autocomplete="username">
       <input id="supervisorPassword" type="password" placeholder="Supervisor password" autocomplete="current-password">
-      <button id="supervisorLoginBtn" onclick="loginAs('supervisor')" disabled>🔐 Sign In as Supervisor</button>
+      <button id="supervisorLoginBtn" onclick="loginAs('supervisor')">🔐 Sign In as Supervisor</button>
       <button onclick="signupAsSupervisor()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Create Supervisor Account</button>
       <button onclick="resendSupervisorConfirmation()" style="background:#fff;color:#172033;border:1px solid #ccd3df">Resend Confirmation Email</button>
       <div id="supervisorMsg" class="authmsg small"></div>
@@ -156,22 +156,6 @@ body.compact-tables table td{font-size:.9rem}
 
 
 <script>
-(function(){
-  try{
-    const q=new URLSearchParams(location.search);
-    if(!q.has('branchId') && !q.has('branch') && !localStorage.getItem('sb-ktrrjldiniwqryuojjnq-auth-token') && !sessionStorage.getItem('kda_access_token')){
-      location.replace('./supervisor.html');
-      return;
-    }
-    if(q.has('branchId') || q.has('branch')){
-      const qs=location.search;
-      const target=new URL('./employee.html',location.href);
-      target.search=qs;
-      location.replace(target.href);
-    }
-  }catch(e){}
-})();
-</script><script>
 const SUPABASE_URL = "https://ktrrjldiniwqryuojjnq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
 const DAILY_RATE_IMPORT_20260928 = {
@@ -192,15 +176,21 @@ async function syncImportedDailyRates(){
   const key='bratt_daily_rate_import_20260928_v1';
   if(localStorage.getItem(key)==='done' || !session) return;
   try{
-    const {data,error}=await sb.from('employees').select('id,full_name');
-    if(error||!Array.isArray(data)) return;
+    const data=await api('/employees?select=id,full_name');
+    if(!Array.isArray(data)) return;
     let updated=0;
     for(const e of data){
       const name=String(e.full_name||'').trim();
       const rate=DAILY_RATE_IMPORT_20260928[name];
       if(rate==null) continue;
-      const {error:ue}=await sb.from('employees').update({daily_rate:rate}).eq('id',e.id);
-      if(!ue) updated++;
+      try{
+        await api('/employees?id=eq.'+encodeURIComponent(e.id),{
+          method:'PATCH',
+          headers:{'Prefer':'return=minimal'},
+          body:JSON.stringify({daily_rate:rate})
+        });
+        updated++;
+      }catch(err){ console.warn('Daily rate update failed for',name,err); }
     }
     localStorage.setItem(key,'done');
     console.log('Daily rate import complete:',updated);
@@ -212,32 +202,7 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 
 let sb = null;
 function loadScriptOnce(src){return new Promise((resolve,reject)=>{const existing=[...document.scripts].find(s=>s.src===src);if(existing){if(window.supabase&&src.includes("supabase"))return resolve();return existing.addEventListener("load",resolve,{once:true}),existing.addEventListener("error",reject,{once:true});}const s=document.createElement("script");s.src=src;s.async=true;s.onload=()=>resolve();s.onerror=()=>reject(new Error("Could not load required script."));document.head.appendChild(s);});}
-async function ensureSupabase(){if(!window.supabase) await loadScriptOnce("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"); if(!sb) sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); return sb;}
-async function ensureQRCode(){if(!window.QRCode) await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"); return window.QRCode;}
-let session = null;
-let authToken = "";
-const BRANCHES = ["Katrina's 1","Katrina's Bites","Katrinas 3","Katrina's Grill","Katrina's Kambingan","D' Sisters","Jeoff Consumer Goods Trading","Jeoff Laundry","K- Corner","Comissary"];
-let cam=null, locked=false, sameQrLocked=false, noQrTimer=null, lastScanToken="", lastScanAt=0, branches=[];
-const EMP_CACHE='bratt_employee_cache_v2', QUEUE_KEY='bratt_offline_queue_v1', LOCAL_ATT='bratt_local_attendance_v1';
-const BRANCH_CACHE='bratt_branch_cache_v2';
-const DEVICE_BIND='bratt_registered_phone_v1';
-let employeeSession=null, employeeBranch=null;
-// Back Office no longer uses a camera on this page. Keep navigation/login safe.
-function stop(){}
 
-function isEmployeeMode(){ return false; }
-function getBranchToken(){ return new URLSearchParams(location.search).get('branch'); }
-function getBranchId(){ return new URLSearchParams(location.search).get('branchId'); }
-async function publicFetch(path, opts={}){
-  const headers={apikey:SUPABASE_KEY, Authorization:'Bearer '+SUPABASE_KEY, ...(opts.headers||{})};
-  const r=await fetch(API+path,{...opts,headers});
-  if(!r.ok){
-    let msg='HTTP '+r.status;
-    try{const b=await r.clone().json(); msg=b.message||b.hint||b.details||msg;}catch{}
-    throw new Error(msg);
-  }
-  return r;
-}
 function getCache(){ try{return JSON.parse(localStorage.getItem(EMP_CACHE)||'{}')}catch{return {}} }
 function setCache(x){localStorage.setItem(EMP_CACHE,JSON.stringify(x))}
 function getQueue(){ try{return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]')}catch{return []} }
@@ -649,42 +614,40 @@ window.addEventListener('online',async()=>{await cacheBranchList();await syncQue
 async function initAuth(){ supervisorBoot(); }
 
 function renderAuth(){
-  const gate=document.getElementById("authGate");
-  const customize=document.getElementById("customizeBtn");
+  const gate=document.getElementById('authGate');
+  const customize=document.getElementById('customizeBtn');
   if(session){
-    gate.style.display="none";
-    if(customize) customize.style.display=authRole==='boss'?'none':'';
-    // Owner is strictly read-only; never run the Supervisor daily-rate writeback.
-    if(authRole!=='boss') syncImportedDailyRates();
-  } else {
-    gate.style.display="flex";
+    gate.style.display='none';
+    if(customize) customize.style.display='';
+  }else{
+    gate.style.display='flex';
     if(customize) customize.style.display='';
     stop();
   }
 }
-let authRole='supervisor';
 
-let supervisorReady=false;
-async function supervisorBoot(){
-  try{
-    await ensureSupabase();
-    supervisorReady=true;
-    const b=document.getElementById('supervisorLoginBtn');
-    if(b){b.disabled=false;b.textContent='🔐 Sign In as Supervisor';}
-  }catch(e){
-    const m=document.getElementById('supervisorMsg');
-    if(m)m.innerHTML='<span class="bad">❌ Cannot load login service. Please refresh this page.</span>';
-  }
+let authRole='supervisor';
+let supervisorReady=true;
+
+function supervisorBoot(){
+  const b=document.getElementById('supervisorLoginBtn');
+  if(b){b.disabled=false;b.textContent='🔐 Sign In as Supervisor';}
 }
+
 async function loginAs(requestedRole){
   const email=document.getElementById('supervisorEmail').value.trim();
   const password=document.getElementById('supervisorPassword').value;
   const m=document.getElementById('supervisorMsg');
   const btn=document.getElementById('supervisorLoginBtn');
   if(!email||!password){m.innerHTML='<span class="bad">Enter email and password.</span>';return;}
-  btn.disabled=true;m.textContent='Signing in…';
+  btn.disabled=true;
+  m.textContent='Signing in…';
   try{
-    const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},body:JSON.stringify({email,password})});
+    const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
+      body:JSON.stringify({email,password})
+    });
     const d=await r.json();
     if(!r.ok) throw new Error(d.error_description||d.msg||d.message||'Invalid login credentials');
     if(d.user?.user_metadata?.role==='boss') throw new Error('Please use the Employer login for this account.');
@@ -694,7 +657,11 @@ async function loginAs(requestedRole){
     authRole='supervisor';
     document.getElementById('authGate').style.display='none';
     await page('dashboard');
-  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message||e)+'</span>';btn.disabled=false;}
+  }catch(e){
+    authToken='';session=null;
+    m.innerHTML='<span class="bad">❌ '+esc(e.message||e)+'</span>';
+    btn.disabled=false;
+  }
 }
 
 async function signupAsSupervisor(){
@@ -703,10 +670,22 @@ async function signupAsSupervisor(){
   const m=document.getElementById('supervisorMsg');
   if(!email||password.length<6){m.innerHTML='<span class="bad">Enter an email and a password with at least 6 characters.</span>';return;}
   m.textContent='Creating account…';
-  const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'supervisor'}}});
-  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
-  if(data.session){session=data.session;authRole='supervisor';renderAuth();await page('dashboard');}
-  else m.innerHTML='<span class="ok">✅ Account created. Check your email for the confirmation link, then sign in.</span>';
+  try{
+    const r=await fetch(SUPABASE_URL+'/auth/v1/signup',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
+      body:JSON.stringify({email,password,data:{role:'supervisor'}})
+    });
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error_description||d.msg||d.message||'Could not create account.');
+    if(d.access_token){
+      authToken=d.access_token;session={access_token:authToken,user:d.user||null};authRole='supervisor';
+      document.getElementById('authGate').style.display='none';
+      await page('dashboard');
+    }else{
+      m.innerHTML='<span class="ok">✅ Account created. Check your email for the confirmation link, then sign in.</span>';
+    }
+  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message||e)+'</span>';}
 }
 
 async function resendSupervisorConfirmation(){
@@ -714,9 +693,16 @@ async function resendSupervisorConfirmation(){
   const m=document.getElementById('supervisorMsg');
   if(!email){m.innerHTML='<span class="bad">Enter your supervisor email first.</span>';return;}
   m.textContent='Sending confirmation email…';
-  const {error}=await sb.auth.resend({type:'signup',email});
-  if(error){m.innerHTML='<span class="bad">❌ '+esc(error.message)+'</span>';return;}
-  m.innerHTML='<span class="ok">✅ Confirmation email sent. Check Inbox and Spam/Junk.</span>';
+  try{
+    const r=await fetch(SUPABASE_URL+'/auth/v1/resend',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
+      body:JSON.stringify({type:'signup',email})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.error_description||d.msg||d.message||'Could not send confirmation email.');
+    m.innerHTML='<span class="ok">✅ Confirmation email sent. Check Inbox and Spam/Junk.</span>';
+  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message||e)+'</span>';}
 }
 
 async function logout(){authToken='';session=null;authRole='supervisor';renderAuth();}
@@ -724,7 +710,7 @@ async function logout(){authToken='';session=null;authRole='supervisor';renderAu
 async function api(path, opts={}){
   const headers = {
     "apikey": SUPABASE_KEY,
-    "Authorization": "Bearer " + (authToken || SUPABASE_KEY),
+    "Authorization": "Bearer " + authToken,
     "Content-Type":"application/json",
     "Accept":"application/json",
     ...(opts.headers||{})
@@ -1108,7 +1094,7 @@ async function csv(){
   const rows=[['DATE','EMP ID','NAME','BRANCH','TIME IN','TIME OUT'],...filtered.map(x=>{const e=emp(x.employee_id);return [x.attendance_date,e?.employee_code||'Unknown',e?.full_name||'Unknown',branchName(x.branch_id),x.time_in?new Date(x.time_in).toLocaleString():'',x.time_out?new Date(x.time_out).toLocaleString():'']})];
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(row=>row.map(v=>JSON.stringify(v)).join(',')).join('\\n')],{type:'text/csv'}));a.download='attendance-'+month+(branch==='all'?'':'-'+String(branchName(branch)).replace(/[^a-z0-9]+/gi,'-'))+'.csv';a.click();
 }
-try{if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v=9').then(()=>console.log('Offline support ready')).catch(e=>console.warn('Offline support registration failed',e));});}}catch{} initTheme(); initPreset(); initTableDensity(); initTheme(); initFont(); supervisorBoot();
+initTheme(); initPreset(); initTableDensity(); initFont(); supervisorBoot();
 </script>
 </body>
 </html>
