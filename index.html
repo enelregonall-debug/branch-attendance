@@ -805,7 +805,7 @@ async function branchqrs(){
   await ensureQRCode();
   const rows=await api('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc');
   app.innerHTML='<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">'+rows.map(b=>'<div class="card center"><h3>'+esc(b.name)+'</h3><div id="bqr'+b.id+'" style="display:flex;justify-content:center"></div><p class="small "'+(b.latitude!=null?'ok':'bad')+'>'+(b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set')+'</p><button onclick="printBranchQR('+b.id+')">Print QR</button> <button onclick="setBranchLocation('+b.id+')" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button></div>').join('')+'</div></div>';
-  rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
+  rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname.replace(/[^/]*$/,'employee.html')+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
 }
 async function setBranchLocation(id){
   const b=branches.find(x=>Number(x.id)===Number(id));
