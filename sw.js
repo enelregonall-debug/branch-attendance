@@ -1,7 +1,7 @@
-const CACHE_NAME='katrinas-attendance-offline-v8';
+const CACHE_NAME='katrinas-attendance-offline-final1';
 const APP_SHELL=[
   './',
-  './index.html',
+  './index.html','./employee.html',
   './manifest.json',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
