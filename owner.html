@@ -7,13 +7,13 @@
 <title>Katrinas Digital Attendance — Employer</title>
 <style>
 :root{--ink:#172033;--gold:#d6a84f;--line:#e6eaf0;--muted:#667085;--red:#8d1023}
-*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font-family:'Book Antiqua',Palatino,serif;font-size:14px}
-header{background:linear-gradient(135deg,#8d1023,#b51f32);color:#fff;padding:22px}
-main{max-width:1200px;margin:auto;padding:20px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 8px 25px #17203312}
+*{box-sizing:border-box}body{font-family:"Book Antiqua",Palatino,"Palatino Linotype",serif;margin:0;background:linear-gradient(180deg,#f7f8fb 0%,#f2f5f9 100%);color:var(--ink);line-height:1.45;font-size:14px}
+header{background:linear-gradient(135deg,#8d1023 0%,#b51f32 65%,#d02d42 100%);color:#fff;padding:22px 20px;box-shadow:0 5px 20px rgba(17,26,43,.18);position:relative;overflow:hidden}
+main{max-width:1180px;margin:auto;padding:22px 16px 40px}.card{background:#fff;padding:20px;margin-bottom:16px;border:1px solid rgba(230,234,240,.9);border-radius:16px;box-shadow:0 10px 30px rgba(23,32,51,.08)}
 .login{max-width:430px;margin:12vh auto;background:#fff;padding:28px;border-radius:18px;box-shadow:0 20px 50px #17203322}
-input,select,button{padding:10px 12px;border:1px solid #d7dce5;border-radius:9px;font:inherit}input,select{width:100%;margin:6px 0 12px}button{background:var(--ink);color:#fff;cursor:pointer;font-weight:700}.muted{color:var(--muted)}.bad{color:#b42318;font-weight:700}.ok{color:#087443;font-weight:700}
-nav{background:#fff;padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
-table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{background:#f7f8fb;font-size:12px;text-transform:uppercase}td{font-size:14px}
+button,input,select{padding:10px 12px;border:1px solid #d7dce5;border-radius:10px;font:inherit;transition:.18s ease}input,select{width:100%;margin:6px 0 12px}button{background:var(--ink);color:#fff;cursor:pointer;font-weight:600;box-shadow:0 2px 5px rgba(23,32,51,.08)}.muted{color:var(--muted)}.bad{color:#b42318;font-weight:700}.ok{color:#087443;font-weight:700}
+nav{background:rgba(255,255,255,.94);backdrop-filter:blur(12px);padding:11px 14px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);box-shadow:0 4px 16px rgba(23,32,51,.05)}
+table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:12px}th,td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{background:#f7f8fb;color:#475467;font-size:12px;text-transform:uppercase;letter-spacing:.04em}td{font-size:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{font-size:28px;font-weight:800}
 #app{overflow-x:auto}@media(max-width:600px){main{padding:10px}.login{margin:7vh auto;padding:20px}}
 </style>
@@ -107,7 +107,7 @@ function show(x){
  <div class="card">Completed<div class="stat">${atts.filter(a=>a.attendance_date===today()&&a.time_in&&a.time_out).length}</div></div>
  </div></div><div class="card"><b>Read-only mode</b><p class="muted">Employer account can view the central attendance records but cannot change them.</p></div>`;
  if(x==='employees') app.innerHTML=`<div class="card"><h2>Employees</h2><table><thead><tr><th>EMP ID</th><th>NAME</th><th>POSITION</th><th>BRANCH</th><th>DAILY RATE</th><th>STATUS</th></tr></thead><tbody>${employees.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(e.position)}</td><td>${esc(bname(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${e.active?'Active':'Inactive'}</td></tr>`).join('')}</tbody></table></div>`;
- if(x==='attendance') app.innerHTML=`<div class="card"><h2>Attendance</h2><label>Branch <select id="ab" onchange="renderAtt()"><option value="">All Branches</option>${branches.map(b=>'<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>').join('')}</select></label><label>Month <input id="am" type="month" value="${today().slice(0,7)}" onchange="renderAtt()"></label><div id="attTable"></div></div>`,renderAtt();
+ if(x==='attendance') app.innerHTML=`<div class="card"><h2>Attendance</h2><label>Branch <select id="ab" onchange="renderAtt()"><option value="">All Branches</option>${branches.map(b=>'<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>').join('')}</select></label><label>Date <input id="ad" type="date" value="${today()}" onchange="renderAtt()"></label><div id="attTable"></div></div>`,renderAtt();
  if(x==='summary') app.innerHTML=`<div class="card"><h2>Monthly Summary</h2><label>Branch <select id="sb" onchange="renderSum()"><option value="">All Branches</option>${branches.map(b=>'<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>').join('')}</select></label><label>Month <input id="sm" type="month" value="${new Date().toISOString().slice(0,7)}" onchange="renderSum()"></label><div id="sumTable"></div></div>`,renderSum();
 }
 function renderAtt(){
