@@ -584,47 +584,72 @@ async function loadMonthlySummary(){
     if(ee)throw ee;if(be)throw be;
     const bs=branches||[], emps=employees||[];
     branchEl.innerHTML='<option value="">All Branches</option><option value="any">Any Branch</option>'+bs.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
-    const selected=branchEl.value||"";
     await fetchMonthlySummary();
-    monthEl.onchange=fetchMonthlySummary; branchEl.onchange=fetchMonthlySummary;
+    monthEl.onchange=fetchMonthlySummary;
+    branchEl.onchange=fetchMonthlySummary;
     document.getElementById("msRefresh").onclick=fetchMonthlySummary;
+
     async function fetchMonthlySummary(){
       const month=monthEl.value||phDate().slice(0,7), filter=branchEl.value||"";
-      status.textContent="Loading monthly summary…"; wrap.innerHTML="";
+      status.textContent="Loading monthly spreadsheet…"; wrap.innerHTML="";
       const [y,m]=month.split("-").map(Number), days=new Date(y,m,0).getDate();
-      const {data:att,error:ae}=await sb.from("attendance").select("employee_id,attendance_date,time_in,time_out").gte("attendance_date",month+"-01").lte("attendance_date",month+"-"+String(days).padStart(2,"0"));
+      const {data:att,error:ae}=await sb.from("attendance")
+        .select("employee_id,attendance_date,time_in,time_out")
+        .gte("attendance_date",month+"-01")
+        .lte("attendance_date",month+"-"+String(days).padStart(2,"0"));
       if(ae)throw ae;
-      const rows=(emps.filter(e=>{
+
+      const rows=emps.filter(e=>{
         const bid=String(e.branch_id??"");
         return !filter||(filter==="any"?bid==="":bid===filter);
-      })).map(e=>{
+      }).map(e=>{
         const mine=(att||[]).filter(a=>String(a.employee_id)===String(e.id));
-        const daily={}; mine.forEach(a=>{daily[a.attendance_date]=a});
+        const daily={};
+        mine.forEach(a=>{daily[a.attendance_date]=a});
+        const marks=[];
         let present=0;
-        for(let d=1;d<=days;d++){
+        for(let d=1;d<=31;d++){
+          if(d>days){ marks.push("—"); continue; }
           const key=month+"-"+String(d).padStart(2,"0"), a=daily[key];
+          let mark="";
           if(a?.time_in&&a?.time_out){
             const tin=new Date(a.time_in), tout=new Date(a.time_out);
             const hours=(tout-tin)/3600000;
-            present += hours>0 && hours<=6 ? 0.5 : 1;
-          }else if(a?.time_in){ present += 1; }
+            if(hours>0 && hours<=6){ present+=0.5; mark="½"; }
+            else { present+=1; mark="P"; }
+          }else if(a?.time_in){
+            present+=1; mark="P";
+          }else{
+            mark="A";
+          }
+          marks.push(mark);
         }
         const absent=Math.max(0,31-present);
         const pay=Number(e.daily_rate||0)*present;
-        return {e,present,absent,pay};
+        return {e,marks,present,absent,pay};
       });
-      status.textContent=rows.length+" employee(s) shown.";
-      wrap.innerHTML=`
-        <table class="att-table" style="min-width:1050px">
-          <thead><tr><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>SCHEDULED DAYS</th><th>TOTAL PRESENT</th><th>TOTAL ABSENT</th><th>ESTIMATED PAY</th></tr></thead>
-          <tbody>${rows.map(r=>{
-            const b=bs.find(x=>String(x.id)===String(r.e.branch_id));
-            return '<tr><td><b>'+escText(r.e.employee_code)+'</b></td><td>'+escText(r.e.full_name)+'</td><td>'+escText(b?.name||"Any Branch")+'</td><td><b>31</b></td><td><b>'+r.present+'</b></td><td><b>'+r.absent+'</b></td><td><b>₱'+r.pay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})+'</b></td></tr>';
-          }).join("")}</tbody>
-        </table>`;
+
+      status.textContent=rows.length+" employee(s) shown. Spreadsheet view.";
+      const dayHeads=Array.from({length:31},(_,i)=>'<th style="text-align:center;min-width:42px">'+(i+1)+'</th>').join("");
+      wrap.innerHTML=
+        '<table class="att-table monthly-sheet" style="min-width:1900px">'+
+        '<thead><tr><th style="position:sticky;left:0;z-index:3;background:#f8fafc">EMP ID</th><th style="position:sticky;left:90px;z-index:3;background:#f8fafc">NAME</th><th>BRANCH</th><th>SCHEDULED</th>'+
+        dayHeads+
+        '<th>TOTAL PRESENT</th><th>TOTAL ABSENT</th><th>ESTIMATED PAY</th></tr></thead>'+
+        '<tbody>'+rows.map(r=>{
+          const b=bs.find(x=>String(x.id)===String(r.e.branch_id));
+          const dayCells=r.marks.map(mark=>'<td style="text-align:center;font-weight:700">'+mark+'</td>').join("");
+          return '<tr><td style="position:sticky;left:0;background:#fff"><b>'+escText(r.e.employee_code)+'</b></td>'+
+            '<td style="position:sticky;left:90px;background:#fff">'+escText(r.e.full_name)+'</td>'+
+            '<td>'+escText(b?.name||"Any Branch")+'</td><td><b>31</b></td>'+dayCells+
+            '<td><b>'+r.present+'</b></td><td><b>'+r.absent+'</b></td>'+
+            '<td><b>₱'+r.pay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})+'</b></td></tr>';
+        }).join("")+'</tbody></table>'+
+        '<div style="margin-top:10px;color:var(--muted);font-size:13px"><b>Legend:</b> P = Present &nbsp; A = Absent &nbsp; ½ = Half Day &nbsp; — = Date not in selected month. &nbsp; Scheduled payroll basis = 31 days.</div>';
     }
   }catch(e){status.textContent="Could not load monthly summary: "+(e?.message||e)}
 }
+
 async function loadDashboard(){
   const status=document.getElementById("dashStatus");
   try{
