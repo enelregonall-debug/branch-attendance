@@ -48,8 +48,19 @@ const KEY='sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK';
 let token='',user=null,employees=[],branches=[],atts=[];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-function formatTime(v){if(!v)return '—'; const m=String(v).match(/(?:T| )?(\\d{2}):(\\d{2})(?::(\\d{2}))?/); if(!m)return String(v); let h=Number(m[1]),min=m[2],amp=h>=12?'PM':'AM'; h=h%12||12; return h+':'+min+' '+amp;}
-function formatDate(v){if(!v)return '—'; const p=String(v).slice(0,10).split('-'); return p.length===3?p[1]+'/'+p[2]+'/'+p[0]:String(v);}
+function formatTime(v){
+ if(!v)return '—';
+ const s=String(v), m=s.match(/(?:T| )?(\\d{2}):(\\d{2})(?::(\\d{2}))?/);
+ if(!m)return s;
+ let h=Number(m[1]), min=m[2], amp=h>=12?'PM':'AM';
+ h=h%12||12;
+ return h+':'+min+' '+amp;
+}
+function formatDate(v){
+ if(!v)return '—';
+ const p=String(v).slice(0,10).split('-');
+ return p.length===3?Number(p[1])+'/'+Number(p[2])+'/'+p[0]:String(v);
+}
 
 async function rest(path){
  const r=await fetch(URL+'/rest/v1/'+path,{headers:{apikey:KEY,Authorization:'Bearer '+token,Accept:'application/json'}});
