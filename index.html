@@ -143,6 +143,18 @@ body.compact-tables table td{font-size:.9rem}
 
 
 <script>
+(function(){
+  try{
+    const q=new URLSearchParams(location.search);
+    if(q.has('branchId') || q.has('branch')){
+      const qs=location.search;
+      const target=new URL('./employee.html',location.href);
+      target.search=qs;
+      location.replace(target.href);
+    }
+  }catch(e){}
+})();
+</script><script>
 const SUPABASE_URL = "https://ktrrjldiniwqryuojjnq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
 const DAILY_RATE_IMPORT_20260928 = {
