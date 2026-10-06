@@ -65,6 +65,7 @@ function successConfirm(type,e){
   document.body.appendChild(box);
   document.getElementById('successOk').onclick=()=>box.remove();
 }
+let assistSession=null;
 async function api(path,opt={}){const authToken=assistSession?.access_token||KEY;const r=await fetch(API+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+authToken,'Content-Type':'application/json',...(opt.headers||{})}});if(!r.ok){let x='HTTP '+r.status;try{const j=await r.json();x=j.message||j.details||x}catch{};throw Error(x)}return r}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function esc(s){return String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))}
