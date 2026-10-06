@@ -1043,7 +1043,7 @@ async function saveManualAttendance(){
     await attendance();
   }catch(e){msg.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';}
 }
-async function deleteAttendance(id){
+async async function deleteAttendance(id){
   if(!id)return;
   if(!confirm('Delete this attendance record? This cannot be undone.'))return;
   try{
