@@ -208,52 +208,45 @@ function phDate(){
 let attendanceRows=[];
 let attendanceBranches=[];
 async function loadManualAttendance(){
-  const branch=document.getElementById("manualBranch"), month=document.getElementById("manualMonth"), emp=document.getElementById("manualEmployee");
+  const branch=document.getElementById("manualBranch"), month=document.getElementById("manualMonth"), date=document.getElementById("manualDate"), emp=document.getElementById("manualEmployee");
   branch.innerHTML='<option value="">Select Branch</option>'+attendanceBranches.map(b=>'<option value="'+escText(b.id)+'">'+escText(b.name)+'</option>').join('');
-  const now=new Date();
-  let months='';
+  const now=new Date(); let months='';
   for(let i=-12;i<=3;i++){
     const d=new Date(now.getFullYear(),now.getMonth()+i,1);
     const val=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
     months+='<option value="'+val+'" '+(i===0?"selected":"")+'>'+d.toLocaleDateString("en-PH",{month:"long",year:"numeric"})+'</option>';
   }
   month.innerHTML='<option value="">Select Month</option>'+months;
-  document.getElementById("manualDate").value=phDate();
-  const fill=()=>{
-    const bid=branch.value;
-    const rows=employeeRows.filter(e=>!bid||String(e.branch_id??"")===String(bid));
-    emp.innerHTML='<option value="">Select Employee</option>'+rows.map(e=>'<option value="'+escText(e.id)+'">'+escText(e.full_name)+' — '+escText(e.employee_code)+'</option>').join('');
-  };
-  branch.onchange=fill;
-  month.onchange=()=>{ if(month.value){const [y,m]=month.value.split("-"); const d=document.getElementById("manualDate"); d.min=y+"-"+m+"-01"; d.max=new Date(Number(y),Number(m),0).toISOString().slice(0,10); if(!d.value||d.value.slice(0,7)!==month.value)d.value=d.min;} };
+  month.value=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  date.value=phDate();
+  setManualDateLimits();
+  branch.onchange=loadManualEmployees;
+  month.onchange=()=>{setManualDateLimits();loadManualEmployees()};
+  date.onchange=loadManualEmployees;
   document.getElementById("manualSave").onclick=saveManualAttendance;
-  fill();
+  await loadManualEmployees();
 }
-async function saveManualAttendance(){
-  const msg=document.getElementById("manualMsg"), branch=document.getElementById("manualBranch").value, date=document.getElementById("manualDate").value, empId=document.getElementById("manualEmployee").value, status=document.getElementById("manualStatus").value, ti=document.getElementById("manualTimeIn").value, to=document.getElementById("manualTimeOut").value;
-  if(!branch||!date||!empId){msg.textContent="Please select Branch, Date and Employee.";msg.style.color="#b42318";return}
-  if(status==="present"&&!ti&&!to){msg.textContent="For Present, enter Time In or Time Out.";msg.style.color="#b42318";return}
-  const employee=employeeRows.find(e=>String(e.id)===String(empId)); if(!employee)return;
-  const btn=document.getElementById("manualSave"); btn.disabled=true; btn.textContent="Saving…"; msg.textContent="";
+function setManualDateLimits(){
+  const month=document.getElementById("manualMonth").value,date=document.getElementById("manualDate");
+  if(!month)return;
+  const [y,m]=month.split("-").map(Number);
+  const min=y+"-"+String(m).padStart(2,"0")+"-01";
+  const max=new Date(y,m,0).toISOString().slice(0,10);
+  date.min=min;date.max=max;
+  if(!date.value||date.value<min||date.value>max)date.value=min;
+}
+async function loadManualEmployees(){
+  const branch=document.getElementById("manualBranch").value, emp=document.getElementById("manualEmployee");
+  emp.innerHTML='<option value="">Loading employees…</option>';
+  if(!branch){emp.innerHTML='<option value="">Select Branch first</option>';return}
   try{
-    const baseDate=new Date(date+"T00:00:00");
-    const makeTs=(t)=>t?date+"T"+t+":00":null;
-    const payload={attendance_date:date,employee_id:employee.id,time_in:makeTs(ti),time_out:makeTs(to)};
-    const {data:existing,error:findErr}=await sb.from("attendance").select("id").eq("attendance_date",date).eq("employee_id",employee.id).maybeSingle();
-    if(findErr)throw findErr;
-    let error=null;
-    if(existing){
-      ({error}=await sb.from("attendance").update(payload).eq("id",existing.id));
-    }else{
-      ({error}=await sb.from("attendance").insert(payload));
-    }
+    const {data,error}=await sb.from("employees").select("id,employee_code,full_name,branch_id").eq("active",true).eq("branch_id",Number(branch)).order("full_name");
     if(error)throw error;
-    msg.textContent="✅ Manual attendance saved.";msg.style.color="#167a3d";
-    await fetchAttendance();
-  }catch(e){msg.textContent="❌ Save failed: "+(e?.message||e);msg.style.color="#b42318"}
-  finally{btn.disabled=false;btn.textContent="💾 Save Manual Attendance"}
+    emp.innerHTML='<option value="">Select Employee</option>'+(data||[]).map(e=>'<option value="'+escText(e.id)+'">'+escText(e.full_name)+' — '+escText(e.employee_code)+'</option>').join('');
+    if(!data?.length)emp.innerHTML='<option value="">No active employees in this branch</option>';
+  }catch(e){emp.innerHTML='<option value="">Could not load employees</option>';setManualMsg(e?.message||e,false)}
 }
-
+function setManualMsg(s,ok){const m=document.getElementById("manualMsg");if(m){m.textContent=s;m.style.color=ok?"#167a3d":"#b42318"}}
 async function loadAttendance(){
   const status=document.getElementById("attStatus"), wrap=document.getElementById("attTableWrap"), date=document.getElementById("attDate");
   try{
