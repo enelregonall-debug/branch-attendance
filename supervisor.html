@@ -176,7 +176,7 @@ async function render(page){
       <div class="panel">
         <div class="att-tools">
           <select id="manualBranch"><option value="">Select Branch</option></select>
-          <select id="manualEmployee"><option value="">Select Employee</option></select>
+          <select id="manualEmployee"><option value="">Select Employee Name</option></select>
           <input id="manualDate" type="date">
           <select id="manualType">
             <option value="full">WHOLE DAY</option>
@@ -225,8 +225,8 @@ function setManualDateLimits(){
 }
 async function loadManualEmployees(){
   const branch=document.getElementById("manualBranch").value, emp=document.getElementById("manualEmployee");
-  emp.innerHTML='<option value="">Loading employees…</option>';
-  if(!branch){emp.innerHTML='<option value="">Select Branch first</option>';return}
+  emp.innerHTML='<option value="">Loading Employee Names…</option>';
+  if(!branch){emp.innerHTML='<option value="">Select Employee Name</option>';return}
   try{
     const {data,error}=await sb.from("employees").select("id,employee_code,full_name,branch_id").eq("active",true).eq("branch_id",Number(branch)).order("full_name");
     if(error)throw error;
