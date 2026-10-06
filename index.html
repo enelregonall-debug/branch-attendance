@@ -658,7 +658,8 @@ async function initAuth(){
   session=data.session;
   authRole=session?.user?.user_metadata?.role==='boss'?'boss':'supervisor';
   renderAuth();
-  sb.auth.onAuthStateChange((_event,s)=>{session=s;authRole=s?.user?.user_metadata?.role==='boss'?'boss':'supervisor';renderAuth();});
+  // Keep Back Office navigation deterministic. The login button controls the UI after a confirmed session.
+  // We intentionally do not let a background auth-state callback overwrite the local session during sign-in.
 }
 function renderAuth(){
   const gate=document.getElementById("authGate");
@@ -694,7 +695,9 @@ async function loginAs(requestedRole){
       m.innerHTML='<span class="bad">❌ '+esc(msg)+'</span>';
       return;
     }
-    session=data.session;
+    // Read the confirmed session directly after sign-in.
+    const fresh=await sb.auth.getSession();
+    session=fresh?.data?.session || data.session;
     const signedInRole=session?.user?.user_metadata?.role||'supervisor';
     if((requestedRole==='boss' && signedInRole!=='boss') || (requestedRole==='supervisor' && signedInRole==='boss')){
       const expected=requestedRole==='boss'?'Owner / Employer':'Supervisor';
@@ -706,6 +709,9 @@ async function loginAs(requestedRole){
     }
     authRole=signedInRole==='boss'?'boss':'supervisor';
     renderAuth();
+    // Force the login gate closed before loading the first page.
+    const gate=document.getElementById('authGate');
+    if(gate) gate.style.display='none';
     await page('dashboard');
   }catch(e){
     m.innerHTML='<span class="bad">❌ '+esc(e.message||e)+'</span>';
