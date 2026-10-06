@@ -621,11 +621,11 @@ async function loadMonthlySummary(){
             const tin=new Date(a.time_in), tout=new Date(a.time_out);
             const hours=(tout-tin)/3600000;
             if(hours>0 && hours<=6){ present+=0.5; mark="½"; }
-            else { present+=1; mark="✅"; }
+            else { present+=1; mark="✓"; }
           }else if(a?.time_in){
             present+=1; mark="✅";
           }else{
-            mark="❎";
+            mark="✗";
           }
           marks.push(mark);
         }
@@ -650,7 +650,7 @@ async function loadMonthlySummary(){
             '<td class="freeze-right-1"><b>'+r.present+'</b></td><td class="freeze-right-2"><b>'+r.absent+'</b></td>'+
             '<td class="freeze-right-3"><b>₱'+r.pay.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})+'</b></td></tr>';
         }).join("")+'</tbody></table>'+
-        '<div style="margin-top:10px;color:var(--muted);font-size:13px"><b>Legend:</b> ✅ = Present &nbsp; ❎ = Absent &nbsp; ½ = Half Day &nbsp; — = Upcoming / date not in selected month. &nbsp; Scheduled payroll basis = 31 days.</div>';
+        '<div style="margin-top:10px;color:var(--muted);font-size:13px"><b>Legend:</b> ✓ = Present &nbsp; ✗ = Absent &nbsp; ½ = Half Day &nbsp; — = Upcoming / date not in selected month. &nbsp; Scheduled payroll basis = 31 days.</div>';
     }
   }catch(e){status.textContent="Could not load monthly summary: "+(e?.message||e)}
 }
