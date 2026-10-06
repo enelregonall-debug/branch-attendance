@@ -142,6 +142,7 @@ body.compact-tables table td{font-size:.9rem}
 <button onclick="page('employees')">Employees</button>
 <button onclick="page('branchqrs')">🏪 Branch QR</button>
 <button onclick="page('attendance')">Attendance</button>
+<button onclick="page('manualAttendance')">📝 Manual Attendance</button>
 <button onclick="page('summary')">📊 Monthly Summary</button>
 <button onclick="toggleCustomize()" id="customizeBtn">⚙️ Customize</button>
 <div id="customizePanel" style="display:none;position:absolute;right:16px;top:58px;z-index:1000;background:var(--card);color:var(--ink);padding:14px;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);min-width:230px">
@@ -764,7 +765,7 @@ async function page(x){
   if(!session){renderAuth();return;}
   stop();
   app.innerHTML='<div class="card">Loading…</div>';
-  try{await loadBranches(); await ({dashboard,employees,branchqrs,attendance,summary}[x])();}
+  try{await loadBranches(); await ({dashboard,employees,branchqrs,attendance,manualAttendance,summary}[x])();}
   catch(e){app.innerHTML='<div class="card"><span class="bad">❌ '+esc(e.message)+'</span><p class="muted">Check that your Supabase tables, RLS policies, Project URL and publishable key are correct.</p></div>';}
 }
 
@@ -853,7 +854,7 @@ async function saveEmployee(id){
 async function branchqrs(){
   await ensureQRCode();
   const rows=await api('/branches?select=id,name,qr_token,latitude,longitude,radius_m&order=id.asc');
-  app.innerHTML='<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">'+rows.map(b=>'<div class="card center"><h3>'+esc(b.name)+'</h3><div id="bqr'+b.id+'" style="display:flex;justify-content:center"></div><p class="small "'+(b.latitude!=null?'ok':'bad')+'>'+(b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set')+'</p><button onclick="printBranchQR('+b.id+')">Print QR</button>'+(authRole==='boss'?'':' <button onclick="setBranchLocation('+b.id+')" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button></div>').join('')+'</div></div>';
+  app.innerHTML=`<div class="card"><h2>🏪 Store QR Codes</h2><p class="muted">Print one QR for each branch. Employees scan the printed Branch QR with their phone camera, select their own name, register/verify their phone biometric, then GPS verifies that they are inside this branch.</p><div class="grid">${rows.map(b=>`<div class="card center"><h3>${esc(b.name)}</h3><div id="bqr${b.id}" style="display:flex;justify-content:center"></div><p class="small ${b.latitude!=null?'ok':'bad'}">${b.latitude!=null?'📍 Location set • radius '+esc(b.radius_m||75)+' m':'⚠️ Location not set'}</p><button onclick="printBranchQR(${b.id})">Print QR</button>${authRole==='boss'?'':` <button onclick="setBranchLocation(${b.id})" style="background:#fff;color:#172033;border:1px solid #ccd3df">Set Location</button>`}</div>`).join('')}</div></div>`;
   rows.forEach(b=>new QRCode(document.getElementById('bqr'+b.id),{text:location.origin+location.pathname.replace(/[^/]*$/,'attendance.html')+'?branchId='+encodeURIComponent(b.id)+(b.qr_token?'&branch='+encodeURIComponent(b.qr_token):''),width:220,height:220}));
 }
 async function setBranchLocation(id){
@@ -1012,16 +1013,12 @@ async function summaryCSV(){
 }
 
 async function attendance(){
-  const now=new Date();
-  const defaultMonth=localMonthString(now);
-  const params=new URLSearchParams(location.search);
-  const selected=params.get('attendanceMonth');
-  const monthVal=/^\\d{4}-\\d{2}$/.test(selected||'')?selected:defaultMonth;
-  const branchVal=params.get('attendanceBranch')||'all';
-  const [year,month]=monthVal.split('-').map(Number);
-  const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
-  const start=monthVal+'-01';
-  const end=monthVal+'-'+String(lastDay).padStart(2,'0');
+  const qs=new URLSearchParams(location.search);
+  const monthVal=qs.get('attendanceMonth')||localMonthString();
+  const branchVal=qs.get('attendanceBranch')||'all';
+  const [year,mon]=monthVal.split('-').map(Number);
+  const lastDay=new Date(Date.UTC(year,mon,0)).getUTCDate();
+  const start=monthVal+'-01', end=monthVal+'-'+String(lastDay).padStart(2,'0');
   const r=await api('/attendance?attendance_date=gte.'+start+'&attendance_date=lte.'+end+'&select=id,employee_id,branch_id,attendance_date,time_in,time_out&order=attendance_date.desc,time_in.desc&limit=5000');
   const em=await api('/employees?select=id,employee_code,full_name');
   const emp=id=>em.find(e=>e.id===id)||null;
@@ -1029,15 +1026,27 @@ async function attendance(){
   const owner=authRole==='boss';
   app.innerHTML='<div class="card"><h2>Attendance Log</h2>'+
   (owner?'<p class="muted small">👑 Owner / Employer — View Only</p>':'')+
-  '<div class="grid"><label class="small"><b>Month</b><input id="attendanceMonth" type="month" value="'+monthVal+'" onchange="loadAttendanceMonth()" style="width:100%;margin-top:5px"></label>'+
+  '<div class="grid"><label class="small"><b>Month</b><input id="attendanceMonth" type="month" value="'+monthVal+'" onchange="loadAttendanceMonth()" style="width:100%;margin-top:5px"></label>'+ 
   '<label class="small"><b>Branch</b><select id="attendanceBranch" onchange="loadAttendanceBranch()" style="width:100%;margin-top:5px"><option value="all" '+(branchVal==='all'?'selected':'')+'>All Branches</option>'+branches.map(b=>'<option value="'+b.id+'" '+(String(b.id)===String(branchVal)?'selected':'')+'>'+esc(b.name)+'</option>').join('')+'</select></label></div>'+
-  '<p class="muted small">Attendance records are permanently saved in the central database. Select a month and branch to view the saved records.</p>'+
-  (owner?'':'<div class="card" style="margin-top:14px;border:2px solid #ead8da;background:#fffafa"><h3>📝 Manual Attendance — Supervisor</h3><p class="muted small">Para sa employee nga nakalimot ug TIME IN/OUT. Pili-a ang employee, date, ug attendance type.</p><div class="grid"><label class="small"><b>Branch</b><select id="manualBranch" onchange="loadManualEmployees()" style="width:100%;margin-top:5px"><option value="all">All Branches</option>'+branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+'</option>').join('')+'</select></label><label class="small"><b>Employee</b><select id="manualEmp" style="width:100%;margin-top:5px"></select></label><label class="small"><b>Date</b><input id="manualDate" type="date" value="'+localDateString()+'" style="width:100%;margin-top:5px"></label><label class="small"><b>Type</b><select id="manualType" onchange="manualTypeChanged()" style="width:100%;margin-top:5px"><option value="full">FULL DAY</option><option value="half">HALF DAY</option></select></label><label class="small"><b>Time In</b><input id="manualIn" type="time" value="08:00" style="width:100%;margin-top:5px"></label><label class="small"><b>Time Out</b><input id="manualOut" type="time" value="17:00" style="width:100%;margin-top:5px"></label></div><button onclick="saveManualAttendance()">💾 Save Manual Attendance</button><span id="manualMsg" class="small" style="margin-left:10px"></span></div>')+
-  '<button onclick="csv()">Export '+monthVal+(branchVal==='all'?'':' '+esc(branchName(branchVal)))+' CSV</button>'+
-  '<table><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th>'+(owner?'':'<th>ACTION</th>')+'</tr>'+
-  filtered.map(x=>{const e=emp(x.employee_id);return '<tr><td>'+esc(x.attendance_date)+'</td><td>'+esc(e?.employee_code||'Unknown')+'</td><td>'+esc(e?.full_name||'Unknown')+'</td><td>'+esc(branchName(x.branch_id))+'</td><td>'+(x.time_in?new Date(x.time_in).toLocaleTimeString():'—')+'</td><td>'+(x.time_out?new Date(x.time_out).toLocaleTimeString():'—')+'</td>'+(owner?'':'<td><button onclick="deleteAttendance(\\''+esc(x.id)+'\\')" style="background:#fff;color:#b00020;border:1px solid #d66;padding:6px 10px">Delete</button></td>')+'</tr>'}).join('')+
+  '<p class="muted small">Regular Attendance only. For corrections or missing punches, use the separate Manual Attendance tab.</p>'+ 
+  '<button onclick="csv()">Export '+monthVal+(branchVal==='all'?'':' '+esc(branchName(branchVal)))+' CSV</button>'+ 
+  '<table><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th>'+(owner?'':'<th>ACTION</th>')+'</tr>'+ 
+  filtered.map(x=>{const e=emp(x.employee_id);return `<tr><td>${esc(x.attendance_date)}</td><td>${esc(e?.employee_code||'Unknown')}</td><td>${esc(e?.full_name||'Unknown')}</td><td>${esc(branchName(x.branch_id))}</td><td>${x.time_in?new Date(x.time_in).toLocaleTimeString():'—'}</td><td>${x.time_out?new Date(x.time_out).toLocaleTimeString():'—'}</td>${owner?'':`<td><button onclick="deleteAttendance('${esc(x.id)}')" style="background:#fff;color:#b00020;border:1px solid #d66;padding:6px 10px">Delete</button></td>`}</tr>`}).join('')+
   '</table><p class="muted small">Showing '+filtered.length+' attendance record(s).</p></div>';
-  if(!owner) loadManualEmployees();
+}
+
+async function manualAttendance(){
+  const owner=authRole==='boss';
+  if(owner){app.innerHTML='<div class="card"><h2>📝 Manual Attendance</h2><p class="muted">👑 Owner / Employer — View Only</p><p>Manual Attendance is available to Supervisor accounts only.</p></div>';return;}
+  app.innerHTML='<div class="card"><h2>📝 Manual Attendance</h2>'+ 
+  '<p class="muted small">Para sa employee nga nakalimot ug regular TIME IN/OUT. Separate ni siya nga tab, pero apil gihapon sa Monthly Summary.</p>'+ 
+  '<div class="grid"><label class="small"><b>Branch</b><select id="manualBranch" onchange="loadManualEmployees()" style="width:100%;margin-top:5px"><option value="all">All Branches</option>'+branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+'</option>').join('')+'</select></label>'+ 
+  '<label class="small"><b>Employee</b><select id="manualEmp" style="width:100%;margin-top:5px"></select></label>'+ 
+  '<label class="small"><b>Date</b><input id="manualDate" type="date" value="'+localDateString()+'" style="width:100%;margin-top:5px"></label>'+ 
+  '<label class="small"><b>Attendance</b><select id="manualType" onchange="manualTypeChanged()" style="width:100%;margin-top:5px"><option value="full">WHOLE DAY</option><option value="half">HALF DAY</option></select></label></div>'+ 
+  '<p><button onclick="saveManualAttendance()">💾 Save Manual Attendance</button> <span id="manualMsg" class="small"></span></p>'+ 
+  '<div class="notice small"><b>Note:</b> WHOLE DAY = 1 day. HALF DAY = 0.5 day. Both are included automatically in Monthly Summary.</div></div>';
+  await loadManualEmployees();
 }
 async function loadManualEmployees(){
  const sel=document.getElementById('manualEmp'); if(!sel)return;
@@ -1054,33 +1063,37 @@ async function loadManualEmployees(){
   }).join(''):'<option value="">No active employees in this branch</option>';
  }catch(e){sel.innerHTML='<option value="">Could not load employees</option>';}
 }
-function manualTypeChanged(){const t=document.getElementById('manualType')?.value;if(t==='half'){manualIn.value='08:00';manualOut.value='13:00'}else{manualIn.value='08:00';manualOut.value='17:00'}}
+function manualTypeChanged(){
+  // Manual Attendance is intentionally WHOLE DAY / HALF DAY only.
+}
 function manualDateTime(date,time){return new Date(date+'T'+time+':00').toISOString()}
 async function saveManualAttendance(){
- if(authRole==='boss') return alert('Owner account is view-only.');
- const m=document.getElementById('manualMsg'),empId=document.getElementById('manualEmp')?.value,date=document.getElementById('manualDate')?.value,type=document.getElementById('manualType')?.value,tin=document.getElementById('manualIn')?.value,tout=document.getElementById('manualOut')?.value,selectedBranch=document.getElementById('manualBranch')?.value||'all';
- if(!empId||!date||!tin||!tout){m.innerHTML='<span class="bad">Complete all fields.</span>';return}
- if(tout<=tin){m.innerHTML='<span class="bad">TIME OUT must be later than TIME IN.</span>';return}
- if(!confirm('Save manual '+(type==='half'?'HALF DAY':'FULL DAY')+' attendance for this employee?'))return;
- m.textContent='Saving…';
- try{
-  const rows=await api('/employees?id=eq.'+encodeURIComponent(empId)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
-  const e=rows[0]; if(!e)throw new Error('Employee not found.');
-  // Any Branch employees have branch_id = null. For manual attendance,
-  // require the supervisor to choose the actual branch where they worked.
-  let attendanceBranch=e.branch_id;
-  if(attendanceBranch==null){
-    if(selectedBranch==='all') throw new Error('For an ANY BRANCH employee, please select the actual branch first.');
-    attendanceBranch=selectedBranch;
-  }
-  const existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(empId)+'&attendance_date=eq.'+encodeURIComponent(date)+'&select=id');
-  const payload={employee_id:e.id,branch_id:attendanceBranch,attendance_date:date,time_in:manualDateTime(date,tin),time_out:manualDateTime(date,tout)};
-  if(existing[0]) await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({branch_id:attendanceBranch,time_in:payload.time_in,time_out:payload.time_out})});
-  else await api('/attendance',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});
-  m.innerHTML='<span class="ok">✅ Manual attendance saved for '+esc(e.full_name)+'.</span>';
-  alert('✅ MANUAL ATTENDANCE SAVED\n'+e.full_name+'\n'+date+'\n'+(type==='half'?'HALF DAY':'FULL DAY'));
-  await attendance();
- }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
+  if(authRole==='boss') return alert('Owner account is view-only.');
+  const m=document.getElementById('manualMsg');
+  const selectedBranch=document.getElementById('manualBranch')?.value||'all';
+  const empId=document.getElementById('manualEmp')?.value;
+  const date=document.getElementById('manualDate')?.value;
+  const type=document.getElementById('manualType')?.value||'full';
+  if(!empId||!date)return alert('Please select Branch, Employee and Date.');
+  m.textContent='Saving…';
+  try{
+    const rows=await api('/employees?id=eq.'+encodeURIComponent(empId)+'&active=eq.true&select=id,employee_code,full_name,branch_id');
+    const e=rows[0]; if(!e)throw new Error('Employee not found.');
+    let attendanceBranch=e.branch_id;
+    if(attendanceBranch==null){
+      if(selectedBranch==='all') throw new Error('For an ANY BRANCH employee, please select the actual branch first.');
+      attendanceBranch=selectedBranch;
+    }
+    const existing=await api('/attendance?employee_id=eq.'+encodeURIComponent(empId)+'&attendance_date=eq.'+encodeURIComponent(date)+'&select=id');
+    const tin=type==='half'?'08:00':'08:00';
+    const tout=type==='half'?'13:00':'17:00';
+    const payload={employee_id:e.id,branch_id:attendanceBranch,attendance_date:date,time_in:manualDateTime(date,tin),time_out:manualDateTime(date,tout)};
+    if(existing[0]) await api('/attendance?id=eq.'+existing[0].id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({branch_id:attendanceBranch,time_in:payload.time_in,time_out:payload.time_out})});
+    else await api('/attendance',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});
+    m.innerHTML='<span class="ok">✅ Manual attendance saved.</span>';
+    alert('✅ MANUAL ATTENDANCE SAVED\n'+e.full_name+'\n'+date+'\n'+(type==='half'?'HALF DAY':'WHOLE DAY'));
+    await manualAttendance();
+  }catch(e){m.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>';}
 }
 async function deleteAttendance(id){
   if(authRole==='boss') return alert('Owner account is view-only.');
