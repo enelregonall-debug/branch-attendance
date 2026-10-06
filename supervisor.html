@@ -34,7 +34,7 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:
 .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px}
 .card h3{margin:0 0 8px;font-size:14px;color:var(--muted)}
 .card .num{font-size:28px;font-weight:800}.refresh{background:#fff;color:var(--primary);border:1px solid var(--border);padding:8px 12px}
-.panel{margin-top:18px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px}
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.qr-card{text-align:center;background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px}.qr-box{min-height:190px;display:grid;place-items:center;margin:12px 0}.qr-card h3{margin:0 0 6px}.qr-card p{margin:0;color:var(--muted);font-size:13px}.qr-card button{margin-top:10px;background:var(--primary);color:#fff}.panel{margin-top:18px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px}
 .theme-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid var(--border)}
 .theme-row:last-child{border-bottom:0}
 @media(max-width:800px){
@@ -67,6 +67,7 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:
     <aside class="sidebar">
       <button class="navbtn active" data-page="dashboard">Dashboard</button>
       <button class="navbtn" data-page="employees">Employees</button>
+      <button class="navbtn" data-page="branchqr">Branch QR Code</button>
       <button class="navbtn" data-page="attendance">Attendance</button>
       <button class="navbtn" data-page="monthly">Monthly Summary</button>
       <button class="navbtn" data-page="custom">Custom</button>
@@ -112,6 +113,14 @@ async function render(page){
     await loadDashboard();
   }else if(page==="employees"){
     content.innerHTML=`<h1 class="page-title">Employees</h1><p class="page-sub">Employee roster and management.</p><div class="panel">Employee module — next step.</div>`;
+  }else if(page==="branchqr"){
+    content.innerHTML=`
+      <h1 class="page-title">Branch QR Code</h1>
+      <p class="page-sub">Print these QR codes and post the correct QR at each branch.</p>
+      <div class="panel"><strong>Important:</strong> Employees scan the QR using their own phone. The QR opens the employee attendance page and does not open Supervisor Login.</div>
+      <div id="qrStatus" class="panel">Loading branches…</div>
+      <div id="qrGrid" class="qr-grid"></div>`;
+    await loadBranchQR();
   }else if(page==="attendance"){
     content.innerHTML=`<h1 class="page-title">Attendance</h1><p class="page-sub">Attendance records and management.</p><div class="panel">Attendance module — next step.</div>`;
   }else if(page==="monthly"){
@@ -131,6 +140,46 @@ async function render(page){
 function phDate(){
   const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
   return y+"-"+m+"-"+day;
+}
+async function loadBranchQR(){
+  const status=document.getElementById("qrStatus"), grid=document.getElementById("qrGrid");
+  try{
+    const {data:branches,error}=await sb.from("branches").select("id,name,qr_token").order("name");
+    if(error) throw error;
+    if(!branches?.length){status.textContent="No branches found.";return}
+    status.textContent=branches.length+" branch QR code(s) ready.";
+    grid.innerHTML=branches.map(b=>`
+      <div class="qr-card" id="qr-card-${b.id}">
+        <h3>${escText(b.name)}</h3>
+        <p>SCAN HERE FOR DAILY ATTENDANCE</p>
+        <div class="qr-box" id="qr-${b.id}"></div>
+        <button onclick="printOneQR('${String(b.id).replace(/'/g,"\\'")}')">🖨️ Print QR</button>
+      </div>`).join("");
+    const QR=await loadQR();
+    branches.forEach(b=>{
+      const target=new URL("./attendance.html",location.href);
+      target.searchParams.set("branchId",b.id);
+      if(b.qr_token) target.searchParams.set("branch",b.qr_token);
+      const el=document.getElementById("qr-"+b.id);
+      if(el) new QR(el,{text:target.href,width:180,height:180});
+    });
+  }catch(e){status.textContent="Could not load branches: "+(e?.message||e)}
+}
+function escText(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+async function loadQR(){
+  if(window.QRCode)return window.QRCode;
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+    s.onload=()=>resolve(window.QRCode); s.onerror=()=>reject(new Error("QR library failed to load"));
+    document.head.appendChild(s);
+  });
+}
+function printOneQR(id){
+  const card=document.getElementById("qr-card-"+id); if(!card)return;
+  const w=window.open("","_blank");
+  w.document.write("<!doctype html><html><head><title>Branch QR</title><style>body{font-family:Arial;text-align:center;padding:30px}.qr{margin:auto}button{padding:10px 18px}</style></head><body>"+card.outerHTML+"<script>window.onload=()=>setTimeout(()=>window.print(),400)<\\/script></body></html>");
+  w.document.close();
 }
 async function loadDashboard(){
   const status=document.getElementById("dashStatus");
