@@ -159,6 +159,10 @@ body.compact-tables table td{font-size:.9rem}
 (function(){
   try{
     const q=new URLSearchParams(location.search);
+    if(!q.has('branchId') && !q.has('branch') && !localStorage.getItem('sb-ktrrjldiniwqryuojjnq-auth-token')){
+      location.replace('./supervisor.html');
+      return;
+    }
     if(q.has('branchId') || q.has('branch')){
       const qs=location.search;
       const target=new URL('./employee.html',location.href);
