@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>Katrinas Digital Attendance — Employer</title>
+<style>
+:root{--ink:#172033;--gold:#d6a84f;--line:#e6eaf0;--muted:#667085;--red:#8d1023}
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+header{background:linear-gradient(135deg,#8d1023,#b51f32);color:#fff;padding:22px}
+main{max-width:1200px;margin:auto;padding:20px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 8px 25px #17203312}
+.login{max-width:430px;margin:12vh auto;background:#fff;padding:28px;border-radius:18px;box-shadow:0 20px 50px #17203322}
+input,select,button{padding:10px 12px;border:1px solid #d7dce5;border-radius:9px;font:inherit}input,select{width:100%;margin:6px 0 12px}button{background:var(--ink);color:#fff;cursor:pointer;font-weight:700}.muted{color:var(--muted)}.bad{color:#b42318;font-weight:700}.ok{color:#087443;font-weight:700}
+nav{background:#fff;padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{background:#f7f8fb;font-size:12px;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{font-size:28px;font-weight:800}
+#app{overflow-x:auto}@media(max-width:600px){main{padding:10px}.login{margin:7vh auto;padding:20px}}
+</style>
+</head>
+<body>
+<div id="login">
+  <div class="login">
+    <div style="font-size:36px">👑</div>
+    <h2>Employer / Owner Sign In</h2>
+    <p class="muted">Read-only access to Katrinas Digital Attendance.</p>
+    <input id="email" type="email" placeholder="Employer email" autocomplete="username">
+    <input id="password" type="password" placeholder="Employer password" autocomplete="current-password">
+    <button onclick="signIn()">👑 Sign In</button>
+    <div id="msg" style="margin-top:12px;min-height:22px"></div>
+    <p class="muted" style="font-size:13px">This account can view records only. No add, edit, manual attendance, or delete controls.</p>
+  </div>
+</div>
+<div id="office" style="display:none">
+<header><button onclick="logout()" style="float:right;background:#fff;color:#172033">Log Out</button><h2 style="margin:0">Katrinas Digital Attendance</h2><div>👑 Employer / Owner — Read Only</div></header>
+<nav>
+<button onclick="show('dashboard')">Dashboard</button>
+<button onclick="show('employees')">Employees</button>
+<button onclick="show('attendance')">Attendance</button>
+<button onclick="show('summary')">📊 Monthly Summary</button>
+</nav>
+<main id="app"></main>
+</div>
+<script>
+const URL='https://ktrrjldiniwqryuojjnq.supabase.co';
+const KEY='sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK';
+let token='',user=null,employees=[],branches=[],atts=[];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const today=()=>{const d=new Date();return d.toISOString().slice(0,10)};
+async function rest(path){
+ const r=await fetch(URL+'/rest/v1/'+path,{headers:{apikey:KEY,Authorization:'Bearer '+token,Accept:'application/json'}});
+ const t=await r.text(); if(!r.ok) throw new Error(t||('HTTP '+r.status)); return t?JSON.parse(t):[];
+}
+async function signIn(){
+ const msg=document.getElementById('msg'),email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;
+ if(!email||!password){msg.innerHTML='<span class="bad">Enter email and password.</span>';return}
+ msg.textContent='Signing in…';
+ try{
+  const r=await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const d=await r.json();
+  if(!r.ok) throw new Error(d.error_description||d.msg||'Login failed.');
+  token=d.access_token; user=d.user;
+  if(user?.user_metadata?.role!=='boss'){token='';throw new Error('This account is not an Employer / Owner account.');}
+  document.getElementById('login').style.display='none';document.getElementById('office').style.display='block';
+  await load(); show('dashboard');
+ }catch(e){msg.innerHTML='<span class="bad">❌ '+esc(e.message)+'</span>'}
+}
+async function load(){
+ [branches,employees,atts]=await Promise.all([
+  rest('branches?select=id,name&order=id.asc'),
+  rest('employees?select=id,employee_code,full_name,position,branch_id,daily_rate,active&order=id.asc'),
+  rest('attendance?select=id,employee_id,branch_id,attendance_date,time_in,time_out,status&order=attendance_date.desc')
+ ]);
+}
+const bname=id=>id==null?'ANY BRANCH':(branches.find(b=>String(b.id)===String(id))?.name||'Unknown');
+const ename=id=>employees.find(e=>String(e.id)===String(id))?.full_name||'Unknown';
+function show(x){
+ const app=document.getElementById('app');
+ if(x==='dashboard') app.innerHTML=`<div class="card"><h2>Employer Dashboard</h2><div class="grid">
+ <div class="card">Active Employees<div class="stat">${employees.filter(e=>e.active).length}</div></div>
+ <div class="card">Attendance Today<div class="stat">${atts.filter(a=>a.attendance_date===today()).length}</div></div>
+ <div class="card">Timed In<div class="stat">${atts.filter(a=>a.attendance_date===today()&&a.time_in&&!a.time_out).length}</div></div>
+ <div class="card">Completed<div class="stat">${atts.filter(a=>a.attendance_date===today()&&a.time_in&&a.time_out).length}</div></div>
+ </div></div><div class="card"><b>Read-only mode</b><p class="muted">Employer account can view the central attendance records but cannot change them.</p></div>`;
+ if(x==='employees') app.innerHTML=`<div class="card"><h2>Employees</h2><table><thead><tr><th>EMP ID</th><th>NAME</th><th>POSITION</th><th>BRANCH</th><th>DAILY RATE</th><th>STATUS</th></tr></thead><tbody>${employees.map(e=>`<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(e.position)}</td><td>${esc(bname(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toFixed(2)}</td><td>${e.active?'Active':'Inactive'}</td></tr>`).join('')}</tbody></table></div>`;
+ if(x==='attendance') app.innerHTML=`<div class="card"><h2>Attendance</h2><label>Month <input id="am" type="month" value="${new Date().toISOString().slice(0,7)}" onchange="renderAtt()"></label><div id="attTable"></div></div>`,renderAtt();
+ if(x==='summary') app.innerHTML=`<div class="card"><h2>Monthly Summary</h2><label>Month <input id="sm" type="month" value="${new Date().toISOString().slice(0,7)}" onchange="renderSum()"></label><div id="sumTable"></div></div>`,renderSum();
+}
+function renderAtt(){
+ const m=document.getElementById('am').value;
+ const rows=atts.filter(a=>a.attendance_date?.startsWith(m));
+ document.getElementById('attTable').innerHTML='<table><thead><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th></tr></thead><tbody>'+rows.map(a=>{const e=employees.find(x=>String(x.id)===String(a.employee_id));return `<tr><td>${a.attendance_date}</td><td>${esc(e?.employee_code)}</td><td>${esc(e?.full_name)}</td><td>${esc(bname(a.branch_id))}</td><td>${esc(a.time_in||'—')}</td><td>${esc(a.time_out||'—')}</td></tr>`}).join('')+'</tbody></table>';
+}
+function renderSum(){
+ const m=document.getElementById('sm').value,days=new Date(Number(m.slice(0,4)),Number(m.slice(5,7)),0).getDate(),elapsed=m===new Date().toISOString().slice(0,7)?new Date().getDate():(m<new Date().toISOString().slice(0,7)?days:0);
+ const rows=employees.filter(e=>e.active).map(e=>{
+  const mine=atts.filter(a=>String(a.employee_id)===String(e.id)&&a.attendance_date?.startsWith(m));
+  let present=0; mine.forEach(a=>{const s=(a.status||'').toLowerCase();if(s.includes('half'))present+=.5;else if(a.time_in||s==='present'||s==='approved')present+=1});
+  const absent=Math.max(0,elapsed-present),pay=present*Number(e.daily_rate||0);
+  return `<tr><td>${esc(e.employee_code)}</td><td>${esc(e.full_name)}</td><td>${esc(bname(e.branch_id))}</td><td>₱${Number(e.daily_rate||0).toFixed(2)}</td><td>${present}</td><td>${elapsed?absent:'—'}</td><td>₱${pay.toFixed(2)}</td></tr>`;
+ }).join('');
+ document.getElementById('sumTable').innerHTML='<table><thead><tr><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>DAILY RATE</th><th>TOTAL PRESENT</th><th>TOTAL ABSENT</th><th>ESTIMATED PAY</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function logout(){token='';user=null;document.getElementById('office').style.display='none';document.getElementById('login').style.display='block';document.getElementById('password').value=''}
+</script>
+</body></html>
