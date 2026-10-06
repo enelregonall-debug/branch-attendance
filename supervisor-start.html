@@ -1,1 +1,158 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Katrinas Digital Attendance</title><style>body{font-family:Arial;background:#f5f7fb;margin:0;padding:20px;color:#172033}.box{max-width:430px;margin:60px auto;background:white;padding:25px;border-radius:16px;box-shadow:0 10px 30px #0002}input,button{width:100%;padding:13px;margin:7px 0;box-sizing:border-box;border-radius:9px;border:1px solid #ccd3df;font-size:16px}button{background:#8d1023;color:white;border:0;font-weight:bold}.ok{background:#e8f7ee;color:#087443;padding:12px;border-radius:8px}.bad{background:#fff0ef;color:#b42318;padding:12px;border-radius:8px}.dash{max-width:1100px;margin:auto}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:white;padding:20px;border-radius:12px;font-size:26px;font-weight:bold}</style></head><body><div id="login" class="box"><h1>🔐 Supervisor Sign In</h1><p>Fresh Supervisor Browser</p><input id="email" type="email" placeholder="Supervisor email"><input id="password" type="password" placeholder="Supervisor password"><button id="btn">SIGN IN</button><div id="msg">Ready.</div></div><div id="browser" class="dash" style="display:none"><div class="ok"><b>✅ LOGIN SUCCESSFUL</b><br>Supervisor Browser is now open.</div><h1>Katrinas Digital Attendance</h1><div class="grid"><div class="stat">Employees<br><span id="e">—</span></div><div class="stat">Branches<br><span id="b">—</span></div><div class="stat">Today's Attendance<br><span id="a">—</span></div></div></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>const U="https://ktrrjldiniwqryuojjnq.supabase.co",K="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK",s=supabase.createClient(U,K);document.getElementById("btn").onclick=async()=>{const m=document.getElementById("msg"),email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;if(!email||!password){m.className="bad";m.textContent="Enter email and password.";return}m.textContent="Signing in...";try{const r=await s.auth.signInWithPassword({email,password});if(r.error){m.className="bad";m.textContent="❌ "+r.error.message;return}const q=await s.auth.getSession();if(!q.data.session){m.className="bad";m.textContent="❌ No active session.";return}m.className="ok";m.textContent="✅ LOGIN SUCCESSFUL";document.getElementById("login").style.display="none";document.getElementById("browser").style.display="block";const h={apikey:K,Authorization:"Bearer "+q.data.session.access_token};const [e,b,a]=await Promise.all([fetch(U+"/rest/v1/employees?select=id&active=eq.true",{headers:h}),fetch(U+"/rest/v1/branches?select=id",{headers:{apikey:K,Authorization:"Bearer "+K}}),fetch(U+"/rest/v1/attendance?select=id&attendance_date=eq."+new Date().toISOString().slice(0,10),{headers:h})]);document.getElementById("e").textContent=e.ok?(await e.json()).length:"—";document.getElementById("b").textContent=b.ok?(await b.json()).length:"—";document.getElementById("a").textContent=a.ok?(await a.json()).length:"—"}catch(x){m.className="bad";m.textContent="❌ "+(x.message||x)}};</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>Katrinas Digital Attendance — Supervisor</title>
+<style>
+:root{--red:#8d1023;--ink:#172033;--muted:#667085;--bg:#f5f7fb;--line:#e6eaf0;--card:#fff;--green:#087443;--gold:#d6a84f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+header{background:linear-gradient(135deg,#8d1023,#b51f32);color:white;padding:20px 18px}
+header h1{margin:0;font-size:24px}.wrap{max-width:1250px;margin:auto}
+nav{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:10px;display:flex;gap:7px;flex-wrap:wrap}
+button,input,select{font:inherit;border:1px solid #d7dce5;border-radius:9px;padding:10px 12px;background:#fff;color:var(--ink)}
+button{background:var(--ink);color:#fff;font-weight:700;cursor:pointer}.danger{background:#b42318}.light{background:#fff;color:var(--ink)}
+main{padding:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;margin-bottom:15px;box-shadow:0 5px 18px #1720330b}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{padding:18px;border:1px solid var(--line);border-radius:12px;background:#fff}.stat b{font-size:30px;display:block;margin-top:5px}
+table{width:100%;border-collapse:collapse;min-width:720px}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left}th{background:#f7f8fb;font-size:12px;text-transform:uppercase}
+.tablewrap{overflow:auto}.muted{color:var(--muted)}.ok{color:var(--green);font-weight:700}.bad{color:#b42318;font-weight:700}.hidden{display:none}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.toolbar>*{flex:0 0 auto}
+#login{max-width:430px;margin:70px auto}.msg{margin-top:10px;padding:10px;border-radius:9px;background:#f4f6f8}.qrbox{text-align:center;padding:20px}.qrbox canvas,.qrbox img{margin:10px auto;display:block}
+.sticky th{position:sticky;top:57px;z-index:2}
+@media(max-width:700px){main{padding:10px}header{padding:16px}nav button{flex:1}.card{padding:13px}}
+</style>
+</head>
+<body>
+<div id="login" class="card">
+<h2>🔐 Supervisor Sign In</h2><p class="muted">Katrinas Digital Attendance — Back Office</p>
+<input id="email" type="email" placeholder="Supervisor email" autocomplete="username" style="width:100%;margin:5px 0">
+<input id="password" type="password" placeholder="Supervisor password" autocomplete="current-password" style="width:100%;margin:5px 0">
+<button id="loginBtn" style="width:100%;margin-top:6px">SIGN IN</button><div id="loginMsg" class="msg">Ready.</div>
+</div>
+
+<div id="app" class="hidden">
+<header><div class="wrap"><button id="logout" style="float:right;background:white;color:var(--ink)">Log Out</button><h1>Katrinas Digital Attendance</h1><div>Supervisor / Back Office</div></div></header>
+<nav id="nav"><div class="wrap" style="display:flex;gap:7px;flex-wrap:wrap">
+<button data-page="dashboard">🏠 Dashboard</button><button data-page="employees">👥 Employees</button><button data-page="qr">📱 Branch QR</button><button data-page="attendance">📋 Attendance</button><button data-page="summary">📊 Monthly Summary</button>
+</div></nav>
+<main class="wrap">
+<section id="dashboard" class="page"></section>
+<section id="employees" class="page hidden"></section>
+<section id="qr" class="page hidden"></section>
+<section id="attendance" class="page hidden"></section>
+<section id="summary" class="page hidden"></section>
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const U="https://ktrrjldiniwqryuojjnq.supabase.co",K="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
+const sb=supabase.createClient(U,K);
+let branches=[],employees=[],attendanceRows=[],currentPage="dashboard";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const monthStart=()=>today().slice(0,7)+"-01";
+function fmtDate(x){if(!x)return "—";return new Date(x+"T00:00:00").toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric"})}
+function money(x){return "₱"+Number(x||0).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function msg(el,s,good=false){el.innerHTML='<span class="'+(good?"ok":"bad")+'">'+esc(s)+'</span>'}
+async function getSession(){const r=await sb.auth.getSession();return r.data.session}
+async function loadAll(){
+ const [br,em]=await Promise.all([
+  sb.from("branches").select("id,name,qr_token,latitude,longitude,radius_m").order("name"),
+  sb.from("employees").select("id,employee_code,full_name,position,branch_id,daily_rate,active").order("full_name")
+ ]);
+ if(br.error) throw br.error;if(em.error) throw em.error;
+ branches=br.data||[];employees=em.data||[];
+ await render(currentPage);
+}
+function branchName(id){return branches.find(b=>Number(b.id)===Number(id))?.name||"Any Branch"}
+function nav(p){currentPage=p;document.querySelectorAll(".page").forEach(x=>x.classList.toggle("hidden",x.id!==p));render(p)}
+document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>nav(b.dataset.page));
+document.getElementById("logout").onclick=async()=>{await sb.auth.signOut();location.reload()};
+async function render(p){
+ if(p==="dashboard")return dashboard();if(p==="employees")return employeesPage();if(p==="qr")return qrPage();if(p==="attendance")return attendancePage();if(p==="summary")return summaryPage();
+}
+async function dashboard(){
+ const sec=document.getElementById("dashboard");
+ const d=today();
+ const ar=await sb.from("attendance").select("id,employee_id,time_in,time_out").eq("attendance_date",d);
+ const present=new Set((ar.data||[]).map(x=>x.employee_id)).size;
+ sec.innerHTML='<div class="card"><h2>Dashboard</h2><p class="muted">Today: '+fmtDate(d)+'</p><div class="grid">'+
+ '<div class="stat">Active Employees<b>'+employees.filter(e=>e.active!==false).length+'</b></div>'+
+ '<div class="stat">Branches<b>'+branches.length+'</b></div>'+
+ '<div class="stat">Present Today<b>'+present+'</b></div>'+
+ '<div class="stat">Not Yet In<b>'+Math.max(0,employees.filter(e=>e.active!==false).length-present)+'</b></div></div></div>'+
+ '<div class="card"><h3>Quick Actions</h3><div class="toolbar"><button onclick="nav("employees")">Employees</button><button onclick="nav("qr")">Branch QR</button><button onclick="nav("attendance")">Attendance Log</button><button onclick="nav("summary")">Monthly Summary</button></div></div>';
+}
+async function employeesPage(){
+ const sec=document.getElementById("employees");
+ sec.innerHTML='<div class="card"><h2>Employees</h2><div class="toolbar"><input id="empSearch" placeholder="Search name / ID" oninput="filterEmployees()"><select id="empBranch" onchange="filterEmployees()"><option value="">All Branches</option>'+branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+'</option>').join("")+'</select></div><div id="empTable" class="tablewrap"></div></div>';
+ filterEmployees();
+}
+function filterEmployees(){
+ const q=(document.getElementById("empSearch")?.value||"").toLowerCase(),b=document.getElementById("empBranch")?.value||"";
+ const rows=employees.filter(e=>(!q||[e.employee_code,e.full_name,e.position].join(" ").toLowerCase().includes(q))&&(!b||String(e.branch_id)===String(b)));
+ document.getElementById("empTable").innerHTML='<table><thead><tr><th>EMP ID</th><th>NAME</th><th>POSITION</th><th>BRANCH</th><th>DAILY RATE</th><th>STATUS</th></tr></thead><tbody>'+rows.map(e=>'<tr><td>'+esc(e.employee_code)+'</td><td>'+esc(e.full_name)+'</td><td>'+esc(e.position||"")+'</td><td>'+esc(branchName(e.branch_id))+'</td><td>'+money(e.daily_rate)+'</td><td>'+(e.active===false?'<span class="bad">Inactive</span>':'<span class="ok">Active</span>')+'</td></tr>').join("")+'</tbody></table>';
+}
+async function qrPage(){
+ const sec=document.getElementById("qr");
+ sec.innerHTML='<div class="card"><h2>Branch QR</h2><p class="muted">Employees scan this QR with their own phone. QR opens attendance.html for the selected branch.</p><div class="toolbar"><select id="qrBranch" onchange="drawQR()"><option value="">Select branch</option>'+branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+'</option>').join("")+'</select><button class="light" onclick="window.print()">🖨️ Print</button></div><div id="qrOut"></div></div>';
+}
+function drawQR(){
+ const b=branches.find(x=>String(x.id)===String(document.getElementById("qrBranch").value));const out=document.getElementById("qrOut");if(!b){out.innerHTML="";return}
+ const url=location.origin+location.pathname.replace(/[^/]*$/,"attendance.html")+"?branchId="+encodeURIComponent(b.id)+(b.qr_token?"&branch="+encodeURIComponent(b.qr_token):"");
+ out.innerHTML='<div class="qrbox"><h2>SCAN HERE FOR DAILY ATTENDANCE</h2><div id="qrcode"></div><b>KATRINAS DIGITAL ATTENDANCE</b><p class="muted">'+esc(b.name)+'</p><p class="small">Scan using your phone, then follow GPS verification.</p></div>';
+ new QRCode(document.getElementById("qrcode"),{text:url,width:260,height:260});
+}
+async function attendancePage(){
+ const sec=document.getElementById("attendance");
+ sec.innerHTML='<div class="card"><h2>Attendance Log</h2><div class="toolbar"><label>Month <input id="attMonth" type="month" value="'+today().slice(0,7)+'" onchange="loadAttendance()"></label><select id="attBranch" onchange="loadAttendance()"><option value="">All Branches</option>'+branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+'</option>').join("")+'</select><button onclick="showManual()">✏️ Supervisor Assist / Manual</button></div><div id="manualBox" class="card hidden"></div><div id="attTable" class="tablewrap">Loading…</div></div>';
+ await loadAttendance();
+}
+async function loadAttendance(){
+ const m=document.getElementById("attMonth")?.value||today().slice(0,7),b=document.getElementById("attBranch")?.value||"";
+ let q=sb.from("attendance").select("id,attendance_date,employee_id,branch_id,time_in,time_out").gte("attendance_date",m+"-01").lt("attendance_date",(new Date(m+"-01T00:00:00").getMonth()===11?new Date(new Date(m+"-01T00:00:00").setFullYear(Number(m.slice(0,4))+1,0,1)):new Date(new Date(m+"-01T00:00:00").setMonth(Number(m.slice(5,7)),1))).toISOString().slice(0,10)).order("attendance_date",{ascending:false});
+ if(b)q=q.eq("branch_id",b);
+ const r=await q;if(r.error){document.getElementById("attTable").innerHTML='<span class="bad">'+esc(r.error.message)+'</span>';return}
+ attendanceRows=r.data||[];
+ const map=new Map(employees.map(e=>[e.id,e]));
+ document.getElementById("attTable").innerHTML='<table><thead><tr><th>DATE</th><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>TIME IN</th><th>TIME OUT</th><th>ACTION</th></tr></thead><tbody>'+attendanceRows.map(a=>{const e=map.get(a.employee_id)||{};return '<tr><td>'+fmtDate(a.attendance_date)+'</td><td>'+esc(e.employee_code||"")+'</td><td>'+esc(e.full_name||"")+'</td><td>'+esc(branchName(a.branch_id))+'</td><td>'+time(a.time_in)+'</td><td>'+time(a.time_out)+'</td><td><button class="danger" onclick="deleteAttendance('+a.id+')">Delete</button></td></tr>'}).join("")+'</tbody></table>';
+}
+function time(x){return x?new Date(x).toLocaleTimeString("en-PH",{hour:"numeric",minute:"2-digit"}):"—"}
+async function deleteAttendance(id){if(!confirm("Delete this attendance record?"))return;const r=await sb.from("attendance").delete().eq("id",id);if(r.error)alert("FAILED DELETE: "+r.error.message);else loadAttendance()}
+function showManual(){
+ const b=document.getElementById("manualBox");b.classList.toggle("hidden");b.innerHTML='<h3>Manual Attendance</h3><p class="muted">For employees who forgot to record or have no phone. Supervisor is already signed in.</p><div class="toolbar"><select id="manEmp">'+employees.filter(e=>e.active!==false).map(e=>'<option value="'+e.id+'">'+esc(e.full_name)+' — '+esc(e.employee_code)+'</option>').join("")+'</select><input id="manDate" type="date" value="'+today()+'"><input id="manIn" type="time"><input id="manOut" type="time"><button onclick="saveManual()">Save Attendance</button></div><div id="manMsg" class="msg"></div>';
+}
+async function saveManual(){
+ const employee_id=Number(document.getElementById("manEmp").value),e=employees.find(x=>Number(x.id)===employee_id),date=document.getElementById("manDate").value,ti=document.getElementById("manIn").value,to=document.getElementById("manOut").value,m=document.getElementById("manMsg");
+ if(!e||!date||!ti){msg(m,"Employee, date and Time In are required.");return}
+ const payload={employee_id,branch_id:e.branch_id,attendance_date:date,time_in:new Date(date+"T"+ti+":00").toISOString(),time_out:to?new Date(date+"T"+to+":00").toISOString():null};
+ const r=await sb.from("attendance").upsert(payload,{onConflict:"employee_id,attendance_date"});if(r.error){msg(m,r.error.message);return}msg(m,"Attendance saved successfully.",true);await loadAttendance();
+}
+async function summaryPage(){
+ const sec=document.getElementById("summary");
+ sec.innerHTML='<div class="card"><h2>Monthly Summary</h2><div class="toolbar"><label>Month <input id="sumMonth" type="month" value="'+today().slice(0,7)+'" onchange="buildSummary()"></label><select id="sumBranch" onchange="buildSummary()"><option value="">All Branches</option>'+branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+'</option>').join("")+'</select></div><div id="sumTable" class="tablewrap">Loading…</div></div>';
+ await buildSummary();
+}
+async function buildSummary(){
+ const m=document.getElementById("sumMonth").value,b=document.getElementById("sumBranch").value;
+ const [y,mo]=m.split("-").map(Number),days=new Date(y,mo,0).getDate(),now=new Date(),current=y===now.getFullYear()&&mo===now.getMonth()+1,elapsed=current?now.getDate():days;
+ const from=m+"-01",to=new Date(y,mo,1).toISOString().slice(0,10);
+ let q=sb.from("attendance").select("employee_id,attendance_date").gte("attendance_date",from).lt("attendance_date",to);if(b)q=q.eq("branch_id",b);
+ const r=await q;if(r.error){document.getElementById("sumTable").innerHTML='<span class="bad">'+esc(r.error.message)+'</span>';return}
+ const counts={};for(const a of r.data||[]){(counts[a.employee_id]??=new Set()).add(a.attendance_date)}
+ const emps=employees.filter(e=>e.active!==false&&(!b||String(e.branch_id)===String(b)));
+ document.getElementById("sumTable").innerHTML='<table class="sticky"><thead><tr><th>EMP ID</th><th>NAME</th><th>BRANCH</th><th>DAILY RATE</th><th>TOTAL PRESENT</th><th>TOTAL ABSENT</th><th>ESTIMATED PAY</th></tr></thead><tbody>'+emps.map(e=>{const set=counts[e.id]||new Set();let present=0;for(const d of set){const day=Number(d.slice(8,10));if(day<=elapsed)present++}const absent=Math.max(0,elapsed-present);const pay=present*Number(e.daily_rate||0);return '<tr><td>'+esc(e.employee_code)+'</td><td>'+esc(e.full_name)+'</td><td>'+esc(branchName(e.branch_id))+'</td><td>'+money(e.daily_rate)+'</td><td>'+present+'</td><td>'+absent+'</td><td>'+money(pay)+'</td></tr>'}).join("")+'</tbody></table><p class="muted small">31-day payroll basis: past dates are counted; future dates show no absence. Estimated Pay = Present × Daily Rate.</p>';
+}
+document.getElementById("loginBtn").onclick=async()=>{
+ const m=document.getElementById("loginMsg"),email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
+ if(!email||!password){msg(m,"Enter email and password.");return}m.textContent="Signing in…";
+ const r=await sb.auth.signInWithPassword({email,password});if(r.error){msg(m,r.error.message);return}
+ const s=await getSession();if(!s){msg(m,"No active session.");return}
+ document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");await loadAll();
+};
+(async()=>{try{const s=await getSession();if(s){document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");await loadAll()}}catch(e){console.error(e)}})();
+</script>
+</body></html>
