@@ -708,7 +708,9 @@ async function loadMonthlySummary(){
           }
           marks.push(mark);
         }
-        const absent=Math.max(0,31-present);
+        const selectedMonthKey=month;
+        const elapsedDays=selectedMonthKey<currentMonthKey?31:(selectedMonthKey>currentMonthKey?0:Number(todayKey.slice(8)));
+        const absent=Math.max(0,elapsedDays-present);
         const pay=Number(e.daily_rate||0)*present;
         return {e,marks,present,absent,pay};
       });
