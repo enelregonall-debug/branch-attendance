@@ -541,7 +541,7 @@ async function saveEmployeeAdd(){
   if(rateVal!==""&&Number(rateVal)<0){msg.textContent="Daily rate cannot be negative.";msg.style.color="#b42318";return}
   btn.disabled=true;btn.textContent="Adding…";msg.textContent="";
   try{
-    const row={employee_code:nextEmployeeCode(),full_name:name,position:position||null,branch_id:branchVal?Number(branchVal):null,daily_rate:rateVal===""?null:Number(rateVal),active:true};
+    const row={employee_code:nextEmployeeCode(),qr_token:(crypto.randomUUID?crypto.randomUUID():("emp-"+Date.now()+"-"+Math.random().toString(36).slice(2))),full_name:name,position:position||null,branch_id:branchVal?Number(branchVal):null,daily_rate:rateVal===""?null:Number(rateVal),active:true};
     const {data,error}=await sb.from("employees").insert(row).select("id,employee_code,full_name,position,branch_id,daily_rate,active").single();
     if(error)throw error;
     employeeRows.push(data);closeEmployeeEdit();renderEmployeeTable();
