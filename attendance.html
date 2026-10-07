@@ -51,7 +51,8 @@ body{font-family:Arial,sans-serif;background:#f3f6fb;margin:0;color:#172033}.wra
 const API='https://ktrrjldiniwqryuojjnq.supabase.co/rest/v1';
 const KEY='sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK'; 
 const qs=new URLSearchParams(location.search);
-const branchId=qs.get('branchId'), token=qs.get('branch'), branchNameParam=qs.get('branchName');
+const QR_VERSION='KDA-QR-V2';
+const branchId=qs.get('branchId'), token=qs.get('branch'), branchNameParam=qs.get('branchName'), qrVersion=qs.get('qrVersion');
 let branch=null, employees=[], busy=false;
 const BKEY='kda_clean_branch_v2', EKEY='kda_clean_employees_v2_', PKEY='kda_clean_phone_v1', QKEY='kda_clean_queue_v1';
 function msg(s,good=false){const m=document.getElementById('msg');m.className='msg '+(good?'ok':'bad');m.textContent=s}
@@ -74,18 +75,16 @@ function dist(a,b,c,d){const R=6371000,p=Math.PI/180,A=(c-a)*p,B=(d-b)*p,x=Math.
 function getPos(){return new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:30000}))}
 async function loadData(){
  try{
-  if(!branchId&&!token&&!branchNameParam)throw Error('Invalid Branch QR. No branch information found.');
+  if(qrVersion!==QR_VERSION)throw Error('This Branch QR is no longer valid. Please scan the new permanent QR code.');
   let cached=null;try{cached=JSON.parse(localStorage.getItem(BKEY)||'null')}catch{}
-  const cacheMatches=cached&&((branchId&&String(cached.id)===String(branchId))||(branchNameParam&&String(cached.name)===String(branchNameParam))||(token&&String(cached.qr_token||'')===String(token)));
+  const cacheMatches=cached&&token&&((branchId&&String(cached.id)===String(branchId))||(branchNameParam&&String(cached.name)===String(branchNameParam))||(String(cached.qr_token||'')===String(token)));
   if(cacheMatches){
     branch=cached;document.getElementById('branch').textContent='Branch: '+branch.name;
     const ce=JSON.parse(localStorage.getItem(EKEY+branch.id)||'[]');
     if(Array.isArray(ce)&&ce.length){employees=ce;renderEmployees();const bind=JSON.parse(localStorage.getItem(PKEY)||'null');if(bind){showAttendance(bind);msg('Ready — '+bind.full_name+'.',true)}else{document.getElementById('setup').classList.remove('hidden');msg('Ready. Select your name.',true)}}
   }
   let r,arr=[];
-  if(branchId){r=await api('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
-  if(!arr.length&&branchNameParam){r=await api('/branches?name=eq.'+encodeURIComponent(branchNameParam)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
-  if(!arr.length&&token){r=await api('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
+  if(token){r=await api('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
   if(!arr.length){if(cacheMatches)return;throw Error('Branch QR could not be verified.')}
   branch=arr[0];localStorage.setItem(BKEY,JSON.stringify(branch));document.getElementById('branch').textContent='Branch: '+branch.name;
   r=await api('/employees?active=eq.true&or=(branch_id.eq.'+Number(branch.id)+',branch_id.is.null)&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
