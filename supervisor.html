@@ -530,7 +530,7 @@ function openEmployeeAdd(){
 }
 function nextEmployeeCode(){
   let max=0;
-  employeeRows.forEach(e=>{const m=String(e.employee_code||"").match(/(\\d+)$/);if(m)max=Math.max(max,Number(m[1]))});
+  employeeRows.forEach(e=>{const m=String(e.employee_code||"").match(/(\d+)$/);if(m)max=Math.max(max,Number(m[1]))});
   return "EMP-"+String(max+1).padStart(3,"0");
 }
 async function saveEmployeeAdd(){
