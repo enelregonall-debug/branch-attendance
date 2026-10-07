@@ -791,6 +791,9 @@ document.getElementById("logoutBtn").onclick=async()=>{
   showMessage("");
 };
 document.querySelectorAll(".navbtn").forEach(b=>b.onclick=async()=>await render(b.dataset.page));
+// Restore the last saved Custom Theme and Font on every page refresh.
+loadSavedCustomSettings();
+
 const layout=document.querySelector(".layout");
 const sidebarToggle=document.getElementById("sidebarToggle");
 sidebarToggle.onclick=()=>{layout.classList.toggle("sidebar-collapsed");sidebarToggle.textContent=layout.classList.contains("sidebar-collapsed")?"":"‹";};
