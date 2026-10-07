@@ -158,7 +158,7 @@ async function render(page){
         <div class="emp-tools">
           <input id="empSearch" placeholder="Search name or EMP ID">
           <select id="empBranchFilter"><option value="">All Branches</option></select>
-          <button id="empRefresh" class="refresh">Refresh</button>
+          <button id="empAdd" class="save-btn">＋ Add Staff</button><button id="empRefresh" class="refresh">Refresh</button>
         </div>
         <div id="empStatus" style="color:var(--muted)">Loading employees…</div>
       </div>
@@ -465,6 +465,7 @@ async function loadEmployees(){
     document.getElementById("empSearch").oninput=renderEmployeeTable;
     bf.onchange=renderEmployeeTable;
     document.getElementById("empRefresh").onclick=loadEmployees;
+    document.getElementById("empAdd").onclick=openEmployeeAdd;
     renderEmployeeTable();
   }catch(e){
     status.textContent="Could not load employees: "+(e?.message||e);
@@ -500,6 +501,52 @@ function renderEmployeeTable(){
         </tr>`;
       }).join("")}</tbody>
     </table>`;
+}
+
+function openEmployeeAdd(){
+  const host=document.getElementById("empModalHost");
+  const next=nextEmployeeCode();
+  host.innerHTML=`
+    <div class="modal-backdrop" id="employeeModal">
+      <div class="modal">
+        <h2>Add Staff</h2>
+        <p class="hint">EMP ID is generated automatically.</p>
+        <label>EMP ID</label><input id="addCode" value="${escText(next)}" disabled>
+        <label>Name</label><input id="addName" placeholder="Employee full name">
+        <label>Position</label><input id="addPosition" placeholder="Position">
+        <label>Branch</label>
+        <select id="addBranch">
+          <option value="">Any Branch</option>
+          ${employeeBranches.map(b=>`<option value="${escText(b.id)}">${escText(b.name)}</option>`).join("")}
+        </select>
+        <label>Daily Rate</label><input id="addRate" type="number" min="0" step="0.01" placeholder="0.00">
+        <div class="modal-actions">
+          <button class="cancel-btn" onclick="closeEmployeeEdit()">Cancel</button>
+          <button class="save-btn" id="addSaveBtn" onclick="saveEmployeeAdd()">Add Staff</button>
+        </div>
+        <div id="addMsg" style="margin-top:12px;min-height:20px"></div>
+      </div>
+    </div>`;
+}
+function nextEmployeeCode(){
+  let max=0;
+  employeeRows.forEach(e=>{const m=String(e.employee_code||"").match(/(\\d+)$/);if(m)max=Math.max(max,Number(m[1]))});
+  return "EMP-"+String(max+1).padStart(3,"0");
+}
+async function saveEmployeeAdd(){
+  const msg=document.getElementById("addMsg"),btn=document.getElementById("addSaveBtn");
+  const name=document.getElementById("addName").value.trim(),position=document.getElementById("addPosition").value.trim();
+  const branchVal=document.getElementById("addBranch").value,rateVal=document.getElementById("addRate").value;
+  if(!name){msg.textContent="Name is required.";msg.style.color="#b42318";return}
+  if(rateVal!==""&&Number(rateVal)<0){msg.textContent="Daily rate cannot be negative.";msg.style.color="#b42318";return}
+  btn.disabled=true;btn.textContent="Adding…";msg.textContent="";
+  try{
+    const row={employee_code:nextEmployeeCode(),full_name:name,position:position||null,branch_id:branchVal?Number(branchVal):null,daily_rate:rateVal===""?null:Number(rateVal),active:true};
+    const {data,error}=await sb.from("employees").insert(row).select("id,employee_code,full_name,position,branch_id,daily_rate,active").single();
+    if(error)throw error;
+    employeeRows.push(data);closeEmployeeEdit();renderEmployeeTable();
+    const status=document.getElementById("empStatus");if(status)status.textContent="Staff added successfully.";
+  }catch(err){msg.textContent="Add failed: "+(err?.message||err);msg.style.color="#b42318";btn.disabled=false;btn.textContent="Add Staff";}
 }
 
 function openEmployeeEdit(id){
