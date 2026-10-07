@@ -84,7 +84,13 @@ async function loadData(){
     if(Array.isArray(ce)&&ce.length){employees=ce;renderEmployees();const bind=JSON.parse(localStorage.getItem(PKEY)||'null');if(bind){showAttendance(bind);msg('Ready — '+bind.full_name+'.',true)}else{document.getElementById('setup').classList.remove('hidden');msg('Ready. Select your name.',true)}}
   }
   let r,arr=[];
-  if(token){r=await api('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m');arr=await r.json()}
+  if(branchId){
+    r=await api('/branches?id=eq.'+encodeURIComponent(branchId)+'&select=id,name,qr_token,latitude,longitude,radius_m');
+    arr=await r.json();
+  }else if(token){
+    r=await api('/branches?qr_token=eq.'+encodeURIComponent(token)+'&select=id,name,qr_token,latitude,longitude,radius_m');
+    arr=await r.json();
+  }
   if(!arr.length){if(cacheMatches)return;throw Error('Branch QR could not be verified.')}
   branch=arr[0];localStorage.setItem(BKEY,JSON.stringify(branch));document.getElementById('branch').textContent='Branch: '+branch.name;
   r=await api('/employees?active=eq.true&or=(branch_id.eq.'+Number(branch.id)+',branch_id.is.null)&select=id,employee_code,full_name,position,branch_id&order=full_name.asc');
