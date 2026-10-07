@@ -631,7 +631,8 @@ async function loadBranchQR(){
       const target=new URL("./attendance.html",location.href);
       target.searchParams.set("branchId",b.id);
       target.searchParams.set("qrVersion",QR_VERSION);
-      if(b.qr_token) target.searchParams.set("branch",b.qr_token);
+      // New permanent QR uses the branch ID + QR version. No old token is embedded in the printed link.
+      // This keeps the Canva URL stable and lets attendance verify the branch directly.
       const el=document.getElementById("qr-"+b.id);
       if(el) new QR(el,{text:target.href,width:180,height:180});
     });
