@@ -119,7 +119,7 @@ input,.custom-select{background:var(--card);color:var(--text);border-color:var(-
 <script>
 const SUPABASE_URL="https://ktrrjldiniwqryuojjnq.supabase.co";
 const SUPABASE_KEY="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
-const QR_VERSION="KDA-QR-V2";
+const QR_VERSION="KDA-QR-V3";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 const loginView=document.getElementById("loginView");
@@ -628,7 +628,7 @@ async function loadBranchQR(){
       </div>`).join("");
     const QR=await loadQR();
     branches.forEach(b=>{
-      const target=new URL("./attendance.html",location.href);
+      const target=new URL("./employee-attendance.html",location.href);
       target.searchParams.set("branchId",b.id);
       target.searchParams.set("qrVersion",QR_VERSION);
       // New permanent QR uses the branch ID + QR version. No old token is embedded in the printed link.
