@@ -211,11 +211,16 @@ async function assistLogout(){
 function changeEmployee(){localStorage.removeItem(EMP_KEY);location.reload()}
 async function start(){
   try{
-    await loadBranch();await loadEmployees();
+    msg("Connecting to branch database…");
+    await loadBranch();
+    msg("Branch verified. Loading employee list…",true);
+    await loadEmployees();
     const saved=JSON.parse(localStorage.getItem(EMP_KEY)||"null");
     if(saved?.id){show(saved);msg("Ready — "+saved.full_name+".",true)}
     else msg("Select your name to register this phone.",true);
-  }catch(e){msg("❌ "+(e.message||"Could not load attendance."))}
+  }catch(e){
+    msg("❌ "+(e.message||"Could not load attendance."));
+  }
 }
 $("registerBtn").onclick=registerPhone;
 $("timeInBtn").onclick=()=>attendance("in");
