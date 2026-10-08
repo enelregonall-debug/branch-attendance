@@ -44,6 +44,26 @@ button{background:#172033;color:#fff;border:0;font-weight:700}
 <div id="msg" class="msg">Starting…</div>
 </div></div>
 
+<div id="assistModal" class="hidden" style="position:fixed;inset:0;background:#0008;align-items:center;justify-content:center;padding:18px;z-index:99">
+  <div style="background:#fff;width:100%;max-width:520px;border-radius:18px;padding:20px;box-sizing:border-box;box-shadow:0 12px 40px #0005">
+    <h2 style="margin:0 0 6px">🛟 Supervisor Assist</h2>
+    <p id="assistMsg" class="msg">Supervisor login required.</p>
+    <div id="assistLogin">
+      <input id="assistEmail" type="email" placeholder="Supervisor email" style="width:100%;padding:14px;border:1px solid #ccd3df;border-radius:10px;box-sizing:border-box;margin-top:10px;font-size:16px">
+      <input id="assistPassword" type="password" placeholder="Password" style="width:100%;padding:14px;border:1px solid #ccd3df;border-radius:10px;box-sizing:border-box;margin-top:10px;font-size:16px">
+      <button id="assistLoginBtn">Supervisor Login</button>
+    </div>
+    <div id="assistPanel" class="hidden">
+      <p id="assistEmployee" class="big"></p>
+      <select id="assistEmployeeSelect"><option value="">Select employee</option></select>
+      <button id="assistInBtn">✅ ASSIST TIME IN</button>
+      <button id="assistOutBtn">⏰ ASSIST TIME OUT</button>
+      <button id="assistLogoutBtn" class="secondary">Logout Supervisor</button>
+    </div>
+    <button id="assistCloseBtn" class="secondary">Close</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL="https://ktrrjldiniwqryuojjnq.supabase.co";
