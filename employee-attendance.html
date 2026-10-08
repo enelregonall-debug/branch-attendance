@@ -4,33 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-store">
-<meta name="kda-version" content="2026-10-08-clean-v1">
 <title>Katrinas Digital Attendance</title>
 <style>
 body{font-family:Arial,sans-serif;background:#f3f6fb;margin:0;color:#172033}
-.wrap{max-width:560px;margin:auto;padding:20px}
-.card{background:#fff;border-radius:18px;padding:22px;box-shadow:0 8px 28px #0001;margin-top:25px}
-h1{font-size:23px;margin:0 0 6px}
-.big{font-size:18px;font-weight:700}
-.muted{color:#667085}
+.wrap{max-width:560px;margin:auto;padding:20px}.card{background:#fff;border-radius:18px;padding:22px;box-shadow:0 8px 28px #0001;margin-top:25px}
+h1{font-size:23px;margin:0 0 8px}.big{font-size:18px;font-weight:700}.muted{color:#667085}
 select,button{width:100%;padding:14px;border-radius:10px;border:1px solid #ccd3df;font-size:16px;box-sizing:border-box;margin-top:10px}
-button{background:#172033;color:#fff;border:0;font-weight:700}
-.secondary{background:#fff;color:#172033;border:1px solid #ccd3df}
-.msg{margin-top:14px;padding:10px;border-radius:10px;background:#f5f7fa}
-.ok{color:#087443}.bad{color:#b42318}.hidden{display:none}
- .assist-modal-open{display:flex!important}\n</style>
+button{background:#172033;color:#fff;border:0;font-weight:700}.secondary{background:#fff;color:#172033;border:1px solid #ccd3df}
+.msg{margin-top:14px;padding:10px;border-radius:10px;background:#f5f7fa}.ok{color:#087443}.bad{color:#b42318}.hidden{display:none}
+</style>
 </head>
 <body>
 <div class="wrap"><div class="card">
 <h1>📍 Katrinas Digital Attendance</h1>
-<p id="branch" class="big">Checking branch…</p>
-<p class="muted">Employee attendance — GPS branch check</p>
+<p id="branch" class="big">Loading branch…</p>
+<p class="muted">Simple employee attendance</p>
 
 <div id="setup">
 <label><b>Select your name</b></label>
-<select id="employee"><option>Loading employees…</option></select>
-<button id="registerBtn">Register This Phone</button>
-<button id="assistBtn" class="secondary">🛟 Supervisor Assist</button>
+<select id="employee" disabled><option>Loading employees…</option></select>
+<button id="registerBtn" disabled>Register This Phone</button>
 </div>
 
 <div id="attendance" class="hidden">
@@ -38,220 +31,98 @@ button{background:#172033;color:#fff;border:0;font-weight:700}
 <button id="timeInBtn">✅ TIME IN</button>
 <button id="timeOutBtn">⏰ TIME OUT</button>
 <button id="changeBtn" class="secondary">Change Employee / Phone</button>
-<button id="assistBtn" class="secondary">🛟 Supervisor Assist</button>
 </div>
 
 <div id="msg" class="msg">Starting…</div>
 </div></div>
 
-<div id="assistModal" class="hidden" style="position:fixed;inset:0;background:#0008;align-items:center;justify-content:center;padding:18px;z-index:99">
-  <div style="background:#fff;width:100%;max-width:520px;border-radius:18px;padding:20px;box-sizing:border-box;box-shadow:0 12px 40px #0005">
-    <h2 style="margin:0 0 6px">🛟 Supervisor Assist</h2>
-    <p id="assistMsg" class="msg">Supervisor login required.</p>
-    <div id="assistLogin">
-      <input id="assistEmail" type="email" placeholder="Supervisor email" style="width:100%;padding:14px;border:1px solid #ccd3df;border-radius:10px;box-sizing:border-box;margin-top:10px;font-size:16px">
-      <input id="assistPassword" type="password" placeholder="Password" style="width:100%;padding:14px;border:1px solid #ccd3df;border-radius:10px;box-sizing:border-box;margin-top:10px;font-size:16px">
-      <button id="assistLoginBtn">Supervisor Login</button>
-    </div>
-    <div id="assistPanel" class="hidden">
-      <p id="assistEmployee" class="big"></p>
-      <select id="assistEmployeeSelect"><option value="">Select employee</option></select>
-      <button id="assistInBtn">✅ ASSIST TIME IN</button>
-      <button id="assistOutBtn">⏰ ASSIST TIME OUT</button>
-      <button id="assistLogoutBtn" class="secondary">Logout Supervisor</button>
-    </div>
-    <button id="assistCloseBtn" class="secondary">Close</button>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL="https://ktrrjldiniwqryuojjnq.supabase.co";
-const SUPABASE_KEY="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
+const SUPABASE_KEY="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEJk";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const qs=new URLSearchParams(location.search);
 const branchId=qs.get("branchId");
-const branchToken=qs.get("branch");
-const branchNameParam=qs.get("branchName");
-const QR_VERSION=qs.get("qrVersion")||"KDA-QR-V3";
 let branch=null,employees=[],busy=false;
-const DEVICE_KEY="kda_simple_device_v1";
-const EMP_KEY="kda_simple_employee_v1";
-
+const DEVICE_KEY="kda_hard_device_v1";
+const EMP_KEY="kda_hard_employee_v1";
 const $=id=>document.getElementById(id);
 function msg(t,good=false){$("msg").textContent=t;$("msg").className="msg "+(good?"ok":"bad")}
 function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function token(){let t=localStorage.getItem(DEVICE_KEY);if(!t){t=crypto.randomUUID?crypto.randomUUID():"kda-"+Date.now()+"-"+Math.random().toString(36).slice(2);localStorage.setItem(DEVICE_KEY,t)}return t}
-function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function distance(a,b,c,d){const R=6371000,p=Math.PI/180,A=(c-a)*p,B=(d-b)*p,x=Math.sin(A/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(B/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
 function position(){return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:15000,maximumAge:30000}))}
 
-async function restGet(path){
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),12000);
-  try{
-    const res=await fetch(SUPABASE_URL+"/rest/v1/"+path,{
-      headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY},
-      cache:"no-store",
-      signal:controller.signal
-    });
-    const text=await res.text();
-    if(!res.ok)throw Error(text||("Request failed ("+res.status+")"));
-    return text?JSON.parse(text):[];
-  }catch(e){
-    if(e.name==="AbortError")throw Error("Connection is taking too long. Please check internet and try again.");
-    throw e;
-  }finally{clearTimeout(timer)}
-}
-async function loadBranch(){
-  let q=db.from("branches").select("id,name,latitude,longitude,radius_m");
-  if(branchId)q=q.eq("id",Number(branchId));
-  else if(branchToken)q=q.eq("qr_token",branchToken);
-  else if(branchNameParam)q=q.eq("name",branchNameParam);
-  else throw Error("Branch QR information is missing.");
-  const result=await Promise.race([
-    q.maybeSingle(),
-    new Promise((_,reject)=>setTimeout(()=>reject(Error("Branch loading timed out. Please check internet connection.")),12000))
-  ]);
-  const {data,error}=result;
+async function loadRoster(){
+  if(!branchId)throw Error("Invalid branch QR. Please use the branch QR code.");
+  const {data,error}=await db.rpc("employee_get_roster",{p_branch_id:Number(branchId)});
   if(error)throw error;
-  if(!data)throw Error("Branch could not be verified.");
-  branch=data;$("branch").textContent="Branch: "+data.name;
-}
-async function loadEmployees(){
-  const q=db.from("employees").select("id,employee_code,full_name,position,branch_id,active").eq("active",true).or("branch_id.eq."+Number(branch.id)+",branch_id.is.null").order("full_name");
-  const result=await Promise.race([
-    q,
-    new Promise((_,reject)=>setTimeout(()=>reject(Error("Employee loading timed out. Please check internet connection.")),12000))
-  ]);
-  const {data,error}=result;
-  if(error)throw error;
-  if(!data?.length)throw Error("No active employees are assigned to this branch.");
-  employees=data;
-  $("employee").innerHTML='<option value="">Select your name</option>'+data.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+" — "+esc(e.employee_code)+"</option>").join("");
+  if(!data?.branch)throw Error("Branch could not be verified.");
+  branch=data.branch;
+  employees=Array.isArray(data.employees)?data.employees:[];
+  if(!employees.length)throw Error("No active employees are assigned to this branch.");
+  $("branch").textContent="Branch: "+branch.name;
+  $("employee").innerHTML='<option value="">Select your name</option>'+
+    employees.map(e=>'<option value="'+String(e.employee_code).replace(/"/g,"&quot;")+'">'+
+    String(e.full_name).replace(/</g,"&lt;")+" — "+String(e.employee_code).replace(/</g,"&lt;")+"</option>").join("");
+  $("employee").disabled=false;$("registerBtn").disabled=false;
 }
 function show(e){$("setup").classList.add("hidden");$("attendance").classList.remove("hidden");$("selected").textContent=e.full_name+" — "+e.employee_code}
 async function registerPhone(){
   if(busy)return;
   const e=employees.find(x=>x.employee_code===$("employee").value);
   if(!e){msg("Please select your name first.");return}
-  if(e.branch_id!=null&&Number(e.branch_id)!==Number(branch.id)){msg("This employee is not assigned to this branch.");return}
   busy=true;
   try{
-    const {error}=await db.rpc("employee_register_device",{p_employee_id:Number(e.id),p_branch_id:Number(branch.id),p_device_token:token()});
+    const {error}=await db.rpc("employee_register_device",{
+      p_employee_id:Number(e.id),p_branch_id:Number(branch.id),p_device_token:token()
+    });
     if(error)throw error;
     localStorage.setItem(EMP_KEY,JSON.stringify({id:e.id,employee_code:e.employee_code,full_name:e.full_name,branch_id:e.branch_id}));
-    show(e);msg("Phone registered. Ready for attendance.",true);
+    show(e);msg("Ready. You can now TIME IN.",true);
   }catch(e){msg("❌ "+(e.message||"Phone registration failed."))}
   finally{busy=false}
 }
 async function verifyInside(){
-  if(!branch.latitude||!branch.longitude)throw Error("Branch GPS location is not set yet.");
+  if(!branch.latitude||!branch.longitude)throw Error("Branch GPS location is not set.");
   const p=await position();
   const d=distance(p.coords.latitude,p.coords.longitude,Number(branch.latitude),Number(branch.longitude));
-  if(d>Number(branch.radius_m||75))throw Error("You are outside "+branch.name+". Attendance is allowed only inside the branch.");
+  if(d>Number(branch.radius_m||75))throw Error("You are outside "+branch.name+".");
 }
 async function attendance(type){
   if(busy)return;
   busy=true;
   try{
     const e=JSON.parse(localStorage.getItem(EMP_KEY)||"null");
-    if(!e)throw Error("Register this phone first.");
-    if(e.branch_id!=null&&Number(e.branch_id)!==Number(branch.id))throw Error("This employee is not assigned to this branch.");
+    if(!e)throw Error("Please register this phone first.");
     await verifyInside();
-    const now=new Date().toISOString();
-    const rpc=type==="in"?"employee_time_in":"employee_time_out";
-    const {error}=await db.rpc(rpc,{p_employee_id:Number(e.id),p_branch_id:Number(branch.id),p_device_token:token(),p_attendance_date:today(),p_time:now});
+    const {error}=await db.rpc(type==="in"?"employee_time_in":"employee_time_out",{
+      p_employee_id:Number(e.id),p_branch_id:Number(branch.id),
+      p_device_token:token(),p_attendance_date:today(),p_time:new Date().toISOString()
+    });
     if(error)throw error;
-    msg("✓ "+type.toUpperCase()+" recorded successfully for "+e.full_name+".",true);
+    msg("✓ "+type.toUpperCase()+" recorded successfully.",true);
     alert(type==="in"?"TIME IN successful.":"TIME OUT successful.");
-  }catch(e){msg("❌ "+(e.message||"Attendance could not be recorded."))}
+  }catch(e){msg("❌ "+(e.message||"Attendance failed."))}
   finally{busy=false}
-}
-
-let assistSession=null;
-function openAssist(){
-  $("assistModal").classList.add("assist-modal-open");
-  $("assistMsg").textContent="Supervisor login required.";
-  $("assistPanel").classList.add("hidden");
-  $("assistEmployee").textContent="";
-  $("assistEmployeeSelect").innerHTML='<option value="">Select employee</option>'+employees.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+" — "+esc(e.employee_code)+"</option>").join("");
-}
-async function assistLogin(){
-  const email=$("assistEmail").value.trim(),password=$("assistPassword").value;
-  if(!email||!password){$("assistMsg").textContent="Enter supervisor email and password.";return}
-  $("assistLoginBtn").disabled=true;
-  try{
-    const {data,error}=await db.auth.signInWithPassword({email,password});
-    if(error)throw error;
-    assistSession=data.session;
-    const role=assistSession?.user?.app_metadata?.role||assistSession?.user?.user_metadata?.role||"";
-    if(role&&role!=="supervisor"){await db.auth.signOut();assistSession=null;throw Error("This account is not a supervisor account.")}
-    $("assistPanel").classList.remove("hidden");
-    $("assistMsg").textContent="Supervisor verified. Select an employee, then choose TIME IN or TIME OUT.";
-  }catch(e){$("assistMsg").textContent="❌ "+(e.message||"Supervisor login failed.")}
-  finally{$("assistLoginBtn").disabled=false}
-}
-async function assistAttendance(type){
-  if(!assistSession){$("assistMsg").textContent="Supervisor login required.";return}
-  const code=$("assistEmployeeSelect").value;
-  const e=employees.find(x=>x.employee_code===code);
-  if(!e){$("assistMsg").textContent="Please select an employee.";return}
-  const btn=type==="in"?$("assistInBtn"):$("assistOutBtn");
-  btn.disabled=true;
-  try{
-    const date=today(),now=new Date().toISOString();
-    const {data:rows,error:qe}=await db.from("attendance").select("id,time_in,time_out").eq("employee_id",Number(e.id)).eq("attendance_date",date).limit(1);
-    if(qe)throw qe;
-    const row=rows?.[0]||null;
-    if(type==="in"){
-      if(row?.time_in)throw Error("TIME IN already exists for today.");
-      if(row){
-        const {error}=await db.from("attendance").update({branch_id:Number(branch.id),time_in:now}).eq("id",row.id);
-        if(error)throw error;
-      }else{
-        const {error}=await db.from("attendance").insert({employee_id:Number(e.id),branch_id:Number(branch.id),attendance_date:date,time_in:now,time_out:null});
-        if(error)throw error;
-      }
-    }else{
-      if(!row?.time_in)throw Error("No TIME IN found for today.");
-      if(row.time_out)throw Error("TIME OUT already exists for today.");
-      const {error}=await db.from("attendance").update({time_out:now}).eq("id",row.id);
-      if(error)throw error;
-    }
-    $("assistEmployee").textContent=e.full_name+" — "+e.employee_code;
-    $("assistMsg").textContent="✓ "+type.toUpperCase()+" recorded for "+e.full_name+".";
-  }catch(e){$("assistMsg").textContent="❌ "+(e.message||"Supervisor Assist failed.")}
-  finally{btn.disabled=false}
-}
-async function assistLogout(){
-  if(assistSession)await db.auth.signOut();
-  assistSession=null;$("assistPanel").classList.add("hidden");$("assistMsg").textContent="Supervisor logged out.";
 }
 function changeEmployee(){localStorage.removeItem(EMP_KEY);location.reload()}
 async function start(){
   try{
-    msg("Connecting to branch database…");
-    await loadBranch();
-    msg("Branch verified. Loading employee list…",true);
-    await loadEmployees();
+    msg("Connecting…");
+    await loadRoster();
     const saved=JSON.parse(localStorage.getItem(EMP_KEY)||"null");
-    if(saved?.id){show(saved);msg("Ready — "+saved.full_name+".",true)}
-    else msg("Select your name to register this phone.",true);
-  }catch(e){
-    msg("❌ "+(e.message||"Could not load attendance."));
-  }
+    if(saved?.id && Number(saved.branch_id)===Number(branch.id)){
+      const e=employees.find(x=>Number(x.id)===Number(saved.id));
+      if(e){show(e);msg("Ready — "+e.full_name+".",true);return}
+    }
+    msg("Select your name, then register this phone.",true);
+  }catch(e){msg("❌ "+(e.message||"Could not load attendance."))}
 }
 $("registerBtn").onclick=registerPhone;
 $("timeInBtn").onclick=()=>attendance("in");
 $("timeOutBtn").onclick=()=>attendance("out");
 $("changeBtn").onclick=changeEmployee;
-$("assistBtn").onclick=openAssist;
-$("assistLoginBtn").onclick=assistLogin;
-$("assistInBtn").onclick=()=>assistAttendance("in");
-$("assistOutBtn").onclick=()=>assistAttendance("out");
-$("assistLogoutBtn").onclick=assistLogout;
-$("assistCloseBtn").onclick=()=>{assistLogout();$("assistModal").classList.remove("assist-modal-open")};\n$("assistBtn").onclick=openAssist;\n$("assistLoginBtn").onclick=assistLogin;\n$("assistInBtn").onclick=()=>assistAttendance("in");\n$("assistOutBtn").onclick=()=>assistAttendance("out");\n$("assistLogoutBtn").onclick=assistLogout;\n$("assistCloseBtn").onclick=()=>{assistLogout();$("assistModal").classList.remove("assist-modal-open")};
 start();
 </script>
 </body>
