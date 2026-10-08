@@ -30,6 +30,7 @@ button{background:#172033;color:#fff;border:0;font-weight:700}
 <label><b>Select your name</b></label>
 <select id="employee"><option>Loading employees…</option></select>
 <button id="registerBtn">Register This Phone</button>
+<button id="assistBtn" class="secondary">🛟 Supervisor Assist</button>
 </div>
 
 <div id="attendance" class="hidden">
@@ -65,20 +66,36 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function distance(a,b,c,d){const R=6371000,p=Math.PI/180,A=(c-a)*p,B=(d-b)*p,x=Math.sin(A/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(B/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
 function position(){return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:15000,maximumAge:30000}))}
 
+async function restGet(path){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),12000);
+  try{
+    const res=await fetch(SUPABASE_URL+"/rest/v1/"+path,{
+      headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY},
+      cache:"no-store",
+      signal:controller.signal
+    });
+    const text=await res.text();
+    if(!res.ok)throw Error(text||("Request failed ("+res.status+")"));
+    return text?JSON.parse(text):[];
+  }catch(e){
+    if(e.name==="AbortError")throw Error("Connection is taking too long. Please check internet and try again.");
+    throw e;
+  }finally{clearTimeout(timer)}
+}
 async function loadBranch(){
-  let q=db.from("branches").select("id,name,latitude,longitude,radius_m");
-  if(branchId)q=q.eq("id",Number(branchId));
-  else if(branchToken)q=q.eq("qr_token",branchToken);
-  else if(branchNameParam)q=q.eq("name",branchNameParam);
+  let path="branches?select=id,name,latitude,longitude,radius_m";
+  if(branchId)path+="&id=eq."+encodeURIComponent(branchId);
+  else if(branchToken)path+="&qr_token=eq."+encodeURIComponent(branchToken);
+  else if(branchNameParam)path+="&name=eq."+encodeURIComponent(branchNameParam);
   else throw Error("Branch QR information is missing.");
-  const {data,error}=await q.maybeSingle();
-  if(error)throw error;
-  if(!data)throw Error("Branch could not be verified.");
-  branch=data;$("branch").textContent="Branch: "+data.name;
+  const rows=await restGet(path);
+  if(!rows.length)throw Error("Branch could not be verified.");
+  branch=rows[0];$("branch").textContent="Branch: "+branch.name;
 }
 async function loadEmployees(){
-  const {data,error}=await db.from("employees").select("id,employee_code,full_name,position,branch_id").eq("active",true).or("branch_id.eq."+Number(branch.id)+",branch_id.is.null").order("full_name");
-  if(error)throw error;
+  const path="employees?active=eq.true&or="+encodeURIComponent("(branch_id.eq."+Number(branch.id)+",branch_id.is.null)")+"&select=id,employee_code,full_name,position,branch_id&order=full_name.asc";
+  const data=await restGet(path);
   if(!data?.length)throw Error("No active employees are assigned to this branch.");
   employees=data;
   $("employee").innerHTML='<option value="">Select your name</option>'+data.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+" — "+esc(e.employee_code)+"</option>").join("");
@@ -127,6 +144,8 @@ function openAssist(){
   $("assistModal").classList.add("assist-modal-open");
   $("assistMsg").textContent="Supervisor login required.";
   $("assistPanel").classList.add("hidden");
+  $("assistEmployee").textContent="";
+  $("assistEmployeeSelect").innerHTML='<option value="">Select employee</option>'+employees.map(e=>'<option value="'+esc(e.employee_code)+'">'+esc(e.full_name)+" — "+esc(e.employee_code)+"</option>").join("");
 }
 async function assistLogin(){
   const email=$("assistEmail").value.trim(),password=$("assistPassword").value;
@@ -138,26 +157,23 @@ async function assistLogin(){
     assistSession=data.session;
     const role=assistSession?.user?.app_metadata?.role||assistSession?.user?.user_metadata?.role||"";
     if(role&&role!=="supervisor"){await db.auth.signOut();assistSession=null;throw Error("This account is not a supervisor account.")}
-    const e=JSON.parse(localStorage.getItem(EMP_KEY)||"null");
-    if(!e)throw Error("Register/select the employee first.");
-    $("assistEmployee").textContent="Employee: "+e.full_name+" — "+e.employee_code;
     $("assistPanel").classList.remove("hidden");
-    $("assistMsg").textContent="Supervisor verified. Choose TIME IN or TIME OUT.";
+    $("assistMsg").textContent="Supervisor verified. Select an employee, then choose TIME IN or TIME OUT.";
   }catch(e){$("assistMsg").textContent="❌ "+(e.message||"Supervisor login failed.")}
   finally{$("assistLoginBtn").disabled=false}
 }
 async function assistAttendance(type){
   if(!assistSession){$("assistMsg").textContent="Supervisor login required.";return}
-  const e=JSON.parse(localStorage.getItem(EMP_KEY)||"null");
-  if(!e){$("assistMsg").textContent="Register/select the employee first.";return}
+  const code=$("assistEmployeeSelect").value;
+  const e=employees.find(x=>x.employee_code===code);
+  if(!e){$("assistMsg").textContent="Please select an employee.";return}
   const btn=type==="in"?$("assistInBtn"):$("assistOutBtn");
   btn.disabled=true;
   try{
-    const date=today();
+    const date=today(),now=new Date().toISOString();
     const {data:rows,error:qe}=await db.from("attendance").select("id,time_in,time_out").eq("employee_id",Number(e.id)).eq("attendance_date",date).limit(1);
     if(qe)throw qe;
     const row=rows?.[0]||null;
-    const now=new Date().toISOString();
     if(type==="in"){
       if(row?.time_in)throw Error("TIME IN already exists for today.");
       if(row){
@@ -173,14 +189,16 @@ async function assistAttendance(type){
       const {error}=await db.from("attendance").update({time_out:now}).eq("id",row.id);
       if(error)throw error;
     }
+    $("assistEmployee").textContent=e.full_name+" — "+e.employee_code;
     $("assistMsg").textContent="✓ "+type.toUpperCase()+" recorded for "+e.full_name+".";
   }catch(e){$("assistMsg").textContent="❌ "+(e.message||"Supervisor Assist failed.")}
   finally{btn.disabled=false}
 }
 async function assistLogout(){
-  await db.auth.signOut();assistSession=null;$("assistPanel").classList.add("hidden");$("assistMsg").textContent="Supervisor logged out.";
+  if(assistSession)await db.auth.signOut();
+  assistSession=null;$("assistPanel").classList.add("hidden");$("assistMsg").textContent="Supervisor logged out.";
 }
-\nfunction changeEmployee(){localStorage.removeItem(EMP_KEY);location.reload()}
+function changeEmployee(){localStorage.removeItem(EMP_KEY);location.reload()}
 async function start(){
   try{
     await loadBranch();await loadEmployees();
@@ -192,7 +210,13 @@ async function start(){
 $("registerBtn").onclick=registerPhone;
 $("timeInBtn").onclick=()=>attendance("in");
 $("timeOutBtn").onclick=()=>attendance("out");
-$("changeBtn").onclick=changeEmployee;\n$("assistBtn").onclick=openAssist;\n$("assistLoginBtn").onclick=assistLogin;\n$("assistInBtn").onclick=()=>assistAttendance("in");\n$("assistOutBtn").onclick=()=>assistAttendance("out");\n$("assistLogoutBtn").onclick=assistLogout;\n$("assistCloseBtn").onclick=()=>{assistLogout();$("assistModal").classList.remove("assist-modal-open")};
+$("changeBtn").onclick=changeEmployee;
+$("assistBtn").onclick=openAssist;
+$("assistLoginBtn").onclick=assistLogin;
+$("assistInBtn").onclick=()=>assistAttendance("in");
+$("assistOutBtn").onclick=()=>assistAttendance("out");
+$("assistLogoutBtn").onclick=assistLogout;
+$("assistCloseBtn").onclick=()=>{assistLogout();$("assistModal").classList.remove("assist-modal-open")};\n$("assistBtn").onclick=openAssist;\n$("assistLoginBtn").onclick=assistLogin;\n$("assistInBtn").onclick=()=>assistAttendance("in");\n$("assistOutBtn").onclick=()=>assistAttendance("out");\n$("assistLogoutBtn").onclick=assistLogout;\n$("assistCloseBtn").onclick=()=>{assistLogout();$("assistModal").classList.remove("assist-modal-open")};
 start();
 </script>
 </body>
