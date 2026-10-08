@@ -18,7 +18,7 @@ button{background:#172033;color:#fff;border:0;font-weight:700}
 .secondary{background:#fff;color:#172033;border:1px solid #ccd3df}
 .msg{margin-top:14px;padding:10px;border-radius:10px;background:#f5f7fa}
 .ok{color:#087443}.bad{color:#b42318}.hidden{display:none}
-</style>
+ .assist-modal-open{display:flex!important}\n</style>
 </head>
 <body>
 <div class="wrap"><div class="card">
@@ -37,6 +37,7 @@ button{background:#172033;color:#fff;border:0;font-weight:700}
 <button id="timeInBtn">✅ TIME IN</button>
 <button id="timeOutBtn">⏰ TIME OUT</button>
 <button id="changeBtn" class="secondary">Change Employee / Phone</button>
+<button id="assistBtn" class="secondary">🛟 Supervisor Assist</button>
 </div>
 
 <div id="msg" class="msg">Starting…</div>
@@ -120,7 +121,66 @@ async function attendance(type){
   }catch(e){msg("❌ "+(e.message||"Attendance could not be recorded."))}
   finally{busy=false}
 }
-function changeEmployee(){localStorage.removeItem(EMP_KEY);location.reload()}
+
+let assistSession=null;
+function openAssist(){
+  $("assistModal").classList.add("assist-modal-open");
+  $("assistMsg").textContent="Supervisor login required.";
+  $("assistPanel").classList.add("hidden");
+}
+async function assistLogin(){
+  const email=$("assistEmail").value.trim(),password=$("assistPassword").value;
+  if(!email||!password){$("assistMsg").textContent="Enter supervisor email and password.";return}
+  $("assistLoginBtn").disabled=true;
+  try{
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    assistSession=data.session;
+    const role=assistSession?.user?.app_metadata?.role||assistSession?.user?.user_metadata?.role||"";
+    if(role&&role!=="supervisor"){await db.auth.signOut();assistSession=null;throw Error("This account is not a supervisor account.")}
+    const e=JSON.parse(localStorage.getItem(EMP_KEY)||"null");
+    if(!e)throw Error("Register/select the employee first.");
+    $("assistEmployee").textContent="Employee: "+e.full_name+" — "+e.employee_code;
+    $("assistPanel").classList.remove("hidden");
+    $("assistMsg").textContent="Supervisor verified. Choose TIME IN or TIME OUT.";
+  }catch(e){$("assistMsg").textContent="❌ "+(e.message||"Supervisor login failed.")}
+  finally{$("assistLoginBtn").disabled=false}
+}
+async function assistAttendance(type){
+  if(!assistSession){$("assistMsg").textContent="Supervisor login required.";return}
+  const e=JSON.parse(localStorage.getItem(EMP_KEY)||"null");
+  if(!e){$("assistMsg").textContent="Register/select the employee first.";return}
+  const btn=type==="in"?$("assistInBtn"):$("assistOutBtn");
+  btn.disabled=true;
+  try{
+    const date=today();
+    const {data:rows,error:qe}=await db.from("attendance").select("id,time_in,time_out").eq("employee_id",Number(e.id)).eq("attendance_date",date).limit(1);
+    if(qe)throw qe;
+    const row=rows?.[0]||null;
+    const now=new Date().toISOString();
+    if(type==="in"){
+      if(row?.time_in)throw Error("TIME IN already exists for today.");
+      if(row){
+        const {error}=await db.from("attendance").update({branch_id:Number(branch.id),time_in:now}).eq("id",row.id);
+        if(error)throw error;
+      }else{
+        const {error}=await db.from("attendance").insert({employee_id:Number(e.id),branch_id:Number(branch.id),attendance_date:date,time_in:now,time_out:null});
+        if(error)throw error;
+      }
+    }else{
+      if(!row?.time_in)throw Error("No TIME IN found for today.");
+      if(row.time_out)throw Error("TIME OUT already exists for today.");
+      const {error}=await db.from("attendance").update({time_out:now}).eq("id",row.id);
+      if(error)throw error;
+    }
+    $("assistMsg").textContent="✓ "+type.toUpperCase()+" recorded for "+e.full_name+".";
+  }catch(e){$("assistMsg").textContent="❌ "+(e.message||"Supervisor Assist failed.")}
+  finally{btn.disabled=false}
+}
+async function assistLogout(){
+  await db.auth.signOut();assistSession=null;$("assistPanel").classList.add("hidden");$("assistMsg").textContent="Supervisor logged out.";
+}
+\nfunction changeEmployee(){localStorage.removeItem(EMP_KEY);location.reload()}
 async function start(){
   try{
     await loadBranch();await loadEmployees();
@@ -132,7 +192,7 @@ async function start(){
 $("registerBtn").onclick=registerPhone;
 $("timeInBtn").onclick=()=>attendance("in");
 $("timeOutBtn").onclick=()=>attendance("out");
-$("changeBtn").onclick=changeEmployee;
+$("changeBtn").onclick=changeEmployee;\n$("assistBtn").onclick=openAssist;\n$("assistLoginBtn").onclick=assistLogin;\n$("assistInBtn").onclick=()=>assistAttendance("in");\n$("assistOutBtn").onclick=()=>assistAttendance("out");\n$("assistLogoutBtn").onclick=assistLogout;\n$("assistCloseBtn").onclick=()=>{assistLogout();$("assistModal").classList.remove("assist-modal-open")};
 start();
 </script>
 </body>
