@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store">
+<meta name="kda-version" content="2026-10-08-clean-attendance-01">
+<title>Katrinas Digital Attendance — Employee</title>
+<style>
+:root{--primary:#1f4e79;--bg:#f3f6fb;--card:#fff;--text:#172033;--muted:#667085;--border:#dfe5ec}
+*{box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);margin:0;color:var(--text)}
+.wrap{max-width:560px;margin:auto;padding:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;box-shadow:0 8px 28px #0001;margin-top:25px}
+h1{font-size:23px;margin:0 0 6px}.big{font-size:18px;font-weight:700}.muted{color:var(--muted)}
+select,button{width:100%;padding:14px;border-radius:10px;border:1px solid #ccd3df;font-size:16px;box-sizing:border-box;margin-top:10px}
+button{background:var(--primary);color:#fff;border:0;font-weight:700}.secondary{background:#fff;color:var(--text);border:1px solid var(--border)}
+.msg{margin-top:14px;padding:10px;border-radius:10px;background:#f5f7fa}.ok{color:#087443}.bad{color:#b42318}.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+<h1>📍 Katrinas Digital Attendance</h1>
+<p id="branch" class="big">Checking branch…</p>
+<p class="muted">Employee attendance — branch restricted with GPS</p>
+
+<div id="setup">
+<label><b>Select your name</b></label>
+<select id="employee"><option>Loading employees…</option></select>
+<button id="registerBtn">Register This Phone</button>
+<button id="refreshBtn" class="secondary">Refresh</button>
+<button id="assistBtn" class="secondary">👤 Supervisor Assist — No Phone</button>
+</div>
+
+<div id="attendance" class="hidden">
+<p id="selected" class="big"></p>
+<button id="timeInBtn">TIME IN</button>
+<button id="timeOutBtn">TIME OUT</button>
+<button id="changeBtn" class="secondary">Change Employee / Phone</button>
+<button id="assistBtn2" class="secondary">👤 Supervisor Assist — No Phone</button>
+</div>
+
+<div id="msg" class="msg">Starting…</div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://ktrrjldiniwqryuojjnq.supabase.co";
+const SUPABASE_KEY="sb_publishable_EGj6dcFvsXj55qqs8X7lig__P2cHEjK";
+const QR_VERSION="KDA-QR-V4";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const qs=new URLSearchParams(location.search);
+const branchId=qs.get("branchId");
+const qrVersion=qs.get("qrVersion");
+let branch=null,employees=[],busy=false;
+const DEVICE_KEY="kda_clean_device_v1";
+const BRANCH_KEY="kda_clean_branch_v1";
+
+const $=id=>document.getElementById(id);
+function message(text,good=false){$("msg").textContent=text;$("msg").className="msg "+(good?"ok":"bad")}
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function deviceToken(){let t=localStorage.getItem(DEVICE_KEY);if(!t){t=(crypto.randomUUID?crypto.randomUUID():"kda-"+Date.now()+"-"+Math.random().toString(36).slice(2));localStorage.setItem(DEVICE_KEY,t)}return t}
+function distance(lat1,lon1,lat2,lon2){const R=6371000,p=Math.PI/180,a=(lat2-lat1)*p,b=(lon2-lon1)*p,x=Math.sin(a/2)**2+Math.cos(lat1*p)*Math.cos(lat2*p)*Math.sin(b/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+function getPosition(){return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:15000,maximumAge:30000}))}
+
+async function loadBranch(){
+  if(qrVersion!==QR_VERSION)throw Error("This Branch QR is not valid for the new attendance system.");
+  if(!branchId)throw Error("Branch QR is missing its branch ID.");
+  const {data,error}=await db.from("branches").select("id,name,latitude,longitude,radius_m").eq("id",Number(branchId)).maybeSingle();
+  if(error)throw error;
+  if(!data)throw Error("Branch could not be verified.");
+  branch=data;
+  localStorage.setItem(BRANCH_KEY,JSON.stringify(data));
+  $("branch").textContent="Branch: "+data.name;
+}
+async function loadEmployees(){
+  const {data,error}=await db.from("employees").select("id,employee_code,full_name,position,branch_id").eq("active",true).or("branch_id.eq."+Number(branch.id)+",branch_id.is.null").order("full_name");
+  if(error)throw error;
+  if(!data?.length)throw Error("No active employees are assigned to this branch.");
+  employees=data;
+  $("employee").innerHTML='<option value="">Select your name</option>'+data.map(e=>'<option value="'+escapeHtml(e.employee_code)+'">'+escapeHtml(e.full_name)+" — "+escapeHtml(e.employee_code)+"</option>").join("");
+}
+function showRegistered(e){$("setup").classList.add("hidden");$("attendance").classList.remove("hidden");$("selected").textContent=e.full_name+" — "+e.employee_code}
+async function start(){
+  try{
+    await loadBranch();
+    await loadEmployees();
+    const saved=JSON.parse(localStorage.getItem("kda_employee_binding_v1")||"null");
+    if(saved?.employee_id){showRegistered(saved);message("This phone is registered to "+saved.full_name+".",true)}
+    else message("Select your name to register this phone.",true);
+  }catch(e){message("❌ "+(e.message||"Could not load attendance."))}
+}
+async function registerPhone(){
+  if(busy)return;
+  const e=employees.find(x=>x.employee_code===$("employee").value);
+  if(!e){message("Please select your name first.");return}
+  if(e.branch_id!=null&&Number(e.branch_id)!==Number(branch.id)){message("This employee is not assigned to this branch.");return}
+  localStorage.setItem("kda_employee_binding_v1",JSON.stringify({employee_id:e.id,employee_code:e.employee_code,full_name:e.full_name,branch_id:e.branch_id}));
+  showRegistered(e);
+  message("Phone registered. Ready for attendance.",true);
+}
+async function verifyInside(){
+  if(!branch.latitude||!branch.longitude)throw Error("Branch GPS location is not set yet.");
+  const p=await getPosition();
+  const d=distance(p.coords.latitude,p.coords.longitude,Number(branch.latitude),Number(branch.longitude));
+  if(d>Number(branch.radius_m||75))throw Error("You are outside "+branch.name+". Attendance is allowed only inside the branch.");
+}
+async function record(type){
+  if(busy)return;
+  busy=true;
+  try{
+    const e=JSON.parse(localStorage.getItem("kda_employee_binding_v1")||"null");
+    if(!e)throw Error("Register this phone first.");
+    if(e.branch_id!=null&&Number(e.branch_id)!==Number(branch.id))throw Error("This employee is not assigned to this branch.");
+    await verifyInside();
+    const now=new Date().toISOString();
+    const rpc=type==="in"?"employee_time_in":"employee_time_out";
+    const {data,error}=await db.rpc(rpc,{p_employee_id:Number(e.employee_id),p_branch_id:Number(branch.id),p_device_token:deviceToken(),p_attendance_date:today(),p_time:now});
+    if(error)throw error;
+    message("✓ "+type.toUpperCase()+" recorded successfully for "+e.full_name+".",true);
+  }catch(e){message("❌ "+(e.message||"Attendance could not be recorded."))}
+  finally{busy=false}
+}
+function changeEmployee(){localStorage.removeItem("kda_employee_binding_v1");location.reload()}
+$("registerBtn").onclick=registerPhone;
+$("refreshBtn").onclick=()=>location.reload();
+$("changeBtn").onclick=changeEmployee;
+$("timeInBtn").onclick=()=>record("in");
+$("timeOutBtn").onclick=()=>record("out");
+$("assistBtn").onclick=()=>alert("Supervisor Assist will be connected in the next build step.");
+$("assistBtn2").onclick=()=>alert("Supervisor Assist will be connected in the next build step.");
+start();
+</script>
+</body></html>
